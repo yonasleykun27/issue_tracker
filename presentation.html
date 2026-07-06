@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ethio Telecom — Issue Tracker Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --et-green: #00a551;
+      --et-dark-green: #007a3d;
+      --et-gold: #f5a623;
+      --bg: #0a0f1e;
+      --surface: #111827;
+      --surface2: #1e2a3a;
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f4ff;
+      --muted: #8899aa;
+      --accent: #00a551;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ─── SLIDE SYSTEM ─── */
+    .deck { width: 100vw; height: 100vh; position: relative; }
+
+    .slide {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      padding: 60px 80px;
+      opacity: 0; pointer-events: none;
+      transform: translateX(60px);
+      transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .slide.active {
+      opacity: 1; pointer-events: all;
+      transform: translateX(0);
+    }
+    .slide.exit {
+      opacity: 0;
+      transform: translateX(-60px);
+    }
+
+    /* ─── NAV ─── */
+    .nav {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 16px;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 20px;
+      z-index: 100;
+    }
+    .nav-btn {
+      background: none; border: none; color: var(--text);
+      font-size: 18px; cursor: pointer; padding: 6px 14px;
+      border-radius: 999px; transition: background 0.2s;
+      font-family: inherit;
+    }
+    .nav-btn:hover { background: rgba(255,255,255,0.1); }
+    .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .slide-counter { font-size: 13px; color: var(--muted); min-width: 60px; text-align: center; font-weight: 600; }
+    .nav-dots { display: flex; gap: 6px; }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); cursor: pointer;
+      transition: all 0.3s; border: none;
+    }
+    .dot.active { background: var(--et-green); transform: scale(1.4); }
+
+    /* ─── PROGRESS BAR ─── */
+    .progress {
+      position: fixed; top: 0; left: 0; right: 0; height: 3px;
+      background: rgba(255,255,255,0.05); z-index: 100;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--et-green), var(--et-gold));
+      transition: width 0.4s ease;
+    }
+
+    /* ─── SLIDE LABEL ─── */
+    .slide-label {
+      position: fixed; top: 24px; right: 32px;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      z-index: 100;
+    }
+
+    /* ─── LOGO BAR ─── */
+    .logo-bar {
+      position: fixed; top: 20px; left: 32px;
+      display: flex; align-items: center; gap: 10px;
+      z-index: 100;
+    }
+    .logo-circle {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--et-green), var(--et-dark-green));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 900; color: white;
+    }
+    .logo-text { font-size: 13px; font-weight: 700; color: var(--muted); }
+
+    /* ─── TYPOGRAPHY ─── */
+    .eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--et-green); margin-bottom: 16px;
+    }
+    .slide-title {
+      font-size: clamp(36px, 5vw, 64px);
+      font-weight: 900; line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+    .slide-subtitle {
+      font-size: 18px; color: var(--muted); margin-top: 16px;
+      font-weight: 400; line-height: 1.6; max-width: 680px;
+    }
+    .section-title {
+      font-size: clamp(24px, 3vw, 40px);
+      font-weight: 800; line-height: 1.2; letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .section-sub {
+      font-size: 15px; color: var(--muted); margin-bottom: 40px; font-weight: 400;
+    }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: border-color 0.3s;
+    }
+    .card:hover { border-color: rgba(0,165,81,0.3); }
+
+    .card-grid { display: grid; gap: 16px; }
+    .card-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .card-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    .card-icon {
+      font-size: 28px; margin-bottom: 12px;
+    }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .card-body { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ─── HIGHLIGHT BOX ─── */
+    .highlight {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,165,81,0.12);
+      border: 1px solid rgba(0,165,81,0.25);
+      border-radius: 10px;
+      padding: 4px 12px;
+      font-size: 13px; font-weight: 600; color: var(--et-green);
+    }
+
+    /* ─── TAG CHIPS ─── */
+    .tag {
+      display: inline-block; padding: 4px 12px;
+      border-radius: 999px; font-size: 12px; font-weight: 600;
+      margin: 3px;
+    }
+    .tag-green { background: rgba(0,165,81,0.15); color: #4ade80; border: 1px solid rgba(0,165,81,0.2); }
+    .tag-blue  { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+    .tag-amber { background: rgba(245,166,35,0.15); color: #fbbf24; border: 1px solid rgba(245,166,35,0.2); }
+    .tag-rose  { background: rgba(244,63,94,0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.2); }
+    .tag-purple { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.2); }
+
+    /* ─── GRADIENT TEXT ─── */
+    .grad { background: linear-gradient(135deg, var(--et-green), var(--et-gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* ─── TIMELINE ─── */
+    .timeline { display: flex; flex-direction: column; gap: 0; }
+    .timeline-item { display: flex; gap: 20px; position: relative; }
+    .timeline-item::before {
+      content: ''; position: absolute; left: 19px; top: 40px;
+      width: 2px; background: var(--border); bottom: 0;
+    }
+    .timeline-item:last-child::before { display: none; }
+    .timeline-dot {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--surface2); border: 2px solid var(--et-green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .timeline-content { padding-bottom: 24px; }
+    .timeline-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .timeline-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* ─── ROLE BADGE ─── */
+    .role-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .role-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0%, var(--accent-color) 0%, transparent 70%);
+      opacity: 0.06;
+    }
+    .role-icon { font-size: 36px; margin-bottom: 14px; }
+    .role-name { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .role-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px; }
+    .role-features { text-align: left; }
+    .role-feat { font-size: 12px; color: var(--muted); padding: 3px 0; display: flex; align-items: center; gap: 7px; }
+    .role-feat::before { content: '›'; color: var(--et-green); font-weight: 900; }
+
+    /* ─── TECH STACK ─── */
+    .tech-item {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 20px;
+    }
+    .tech-icon { font-size: 28px; width: 44px; text-align: center; }
+    .tech-name { font-size: 15px; font-weight: 700; }
+    .tech-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ─── STAT CARDS ─── */
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px;
+      text-align: center;
+    }
+    .stat-number { font-size: 48px; font-weight: 900; line-height: 1; }
+    .stat-label { font-size: 13px; color: var(--muted); margin-top: 8px; font-weight: 500; }
+
+    /* ─── CODE BLOCK ─── */
+    .code-block {
+      background: #0d1117; border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; line-height: 1.7; overflow: auto;
+    }
+    .c-key { color: #79c0ff; }
+    .c-str { color: #a5d6ff; }
+    .c-val { color: #ffa657; }
+    .c-comment { color: #586069; }
+
+    /* ─── BACKGROUND EFFECTS ─── */
+    .bg-glow {
+      position: fixed; border-radius: 50%; filter: blur(120px);
+      pointer-events: none; z-index: 0;
+    }
+    .bg-glow-1 { width: 600px; height: 600px; background: rgba(0,165,81,0.06); top: -200px; right: -200px; }
+    .bg-glow-2 { width: 400px; height: 400px; background: rgba(245,166,35,0.05); bottom: -100px; left: -100px; }
+
+    .slide > * { position: relative; z-index: 1; }
+
+    /* ─── DIVIDER ─── */
+    .divider { height: 1px; background: var(--border); margin: 32px 0; }
+
+    /* ─── COVER SLIDE SPECIFIC ─── */
+    .cover-wrap { display: flex; flex-direction: column; justify-content: center; height: 100%; }
+    .cover-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,165,81,0.1); border: 1px solid rgba(0,165,81,0.2);
+      border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 600;
+      color: var(--et-green); margin-bottom: 32px; width: fit-content;
+    }
+    .cover-title { font-size: clamp(48px, 6vw, 80px); font-weight: 900; letter-spacing: -0.04em; line-height: 1.05; margin-bottom: 20px; }
+    .cover-sub { font-size: 20px; color: var(--muted); font-weight: 400; max-width: 600px; line-height: 1.6; margin-bottom: 40px; }
+    .cover-meta { display: flex; gap: 32px; }
+    .cover-meta-item { font-size: 14px; color: var(--muted); }
+    .cover-meta-item strong { color: var(--text); display: block; font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+
+    /* ─── FLOW DIAGRAM ─── */
+    .flow { display: flex; align-items: center; gap: 0; }
+    .flow-node {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 20px; text-align: center;
+      flex: 1;
+    }
+    .flow-node-icon { font-size: 22px; margin-bottom: 6px; }
+    .flow-node-label { font-size: 12px; font-weight: 700; }
+    .flow-node-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .flow-arrow { color: var(--et-green); font-size: 20px; padding: 0 8px; flex-shrink: 0; }
+
+    /* ─── CONTENT LAYOUT ─── */
+    .content-split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; flex: 1; align-items: start; }
+    .content-full { flex: 1; }
+
+    /* scrollable on long slides */
+    .scroll-area { flex: 1; overflow-y: auto; padding-right: 8px; }
+    .scroll-area::-webkit-scrollbar { width: 4px; }
+    .scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ─── AGENDA ─── */
+    .agenda-item {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 18px; border-radius: 12px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .agenda-item:hover { background: var(--surface); }
+    .agenda-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(0,165,81,0.15); color: var(--et-green);
+      font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .agenda-text { font-size: 15px; font-weight: 600; }
+    .agenda-sub { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- Background glows -->
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+
+<!-- Progress bar -->
+<div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- Logo -->
+<div class="logo-bar">
+  <div class="logo-circle">ET</div>
+  <span class="logo-text">Ethio Telecom</span>
+</div>
+
+<!-- Slide label -->
+<div class="slide-label" id="slideLabel">Introduction</div>
+
+<div class="deck" id="deck">
+
+  <!-- ══ SLIDE 1: COVER ══ -->
+  <div class="slide active" data-label="Cover">
+    <div class="cover-wrap">
+      <div class="cover-badge">
+        <span>🏢</span> Ethio Telecom — IT Internship Project
+      </div>
+      <h1 class="cover-title">
+        Issue <span class="grad">Tracker</span><br />System
+      </h1>
+      <p class="cover-sub">
+        A full-stack internal incident reporting and resolution platform built for Ethio Telecom employees, agents, and administrators.
+      </p>
+      <div class="cover-meta">
+        <div class="cover-meta-item">
+          <strong>Platform</strong>
+          Web Application
+        </div>
+        <div class="cover-meta-item">
+          <strong>Stack</strong>
+          Next.js · shadcn/ui · Tailwind
+        </div>
+        <div class="cover-meta-item">
+          <strong>Database</strong>
+          PostgreSQL · Prisma
+        </div>
+        <div class="cover-meta-item">
+          <strong>Roles</strong>
+          Admin · Agent · Employee
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 2: AGENDA ══ -->
+  <div class="slide" data-label="Agenda">
+    <div class="eyebrow">📋 Overview</div>
+    <h2 class="section-title">What We'll Cover</h2>
+    <p class="section-sub">A structured walkthrough of the Issue Tracker system</p>
+    <div class="content-split">
+      <div>
+        <div class="agenda-item"><div class="agenda-num">01</div><div><div class="agenda-text">What is an Issue Tracker?</div><div class="agenda-sub">Problem definition & purpose</div></div></div>
+        <div class="agenda-item"><div class="agenda-num">02</div><div><div class="agenda-text">Problem Statement</div><div class="agenda-sub">Why Ethio Telecom needs this</div></div></div>
+        <div class="agenda-item"><div class="agenda-num">03</div><div><div class="agenda-text">Technology Stack</div><div class="agenda-sub">Tools & frameworks used</div></div></div>
+        <div class="agenda-item"><div class="agenda-num">04</div><div><div class="agenda-text">System Architecture</div><div class="agenda-sub">How it all fits together</div></div></div>
+      </div>
+      <div>
+        <div class="agenda-item"><div class="agenda-num">05</div><div><div class="agenda-text">User Roles</div><div class="agenda-sub">Admin, Agent, Employee</div></div></div>
+        <div class="agenda-item"><div class="agenda-num">06</div><div><div class="agenda-text">Key Features</div><div class="agenda-sub">Core capabilities & workflows</div></div></div>
+        <div class="agenda-item"><div class="agenda-num">07</div><div><div class="agenda-text">Smart Automation</div><div class="agenda-sub">Round-robin, alerts & audit logs</div></div></div>
+        <div class="agenda-item"><div class="agenda-num">08</div><div><div class="agenda-text">Conclusion</div><div class="agenda-sub">Impact & outcomes</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 3: WHAT IS IT ══ -->
+  <div class="slide" data-label="What is an Issue Tracker?">
+    <div class="eyebrow">📌 Definition</div>
+    <h2 class="section-title">What is an Issue Tracker?</h2>
+    <p class="section-sub">The foundation — understanding the core concept</p>
+    <div class="content-split">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-icon">🐛</div>
+          <div class="card-title">Issue Tracking</div>
+          <div class="card-body">An issue tracker is a software tool that records, categorizes, assigns, and monitors problems (issues) reported within an organization — from IT bugs to operational incidents.</div>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <div class="card-title">Core Purpose</div>
+          <div class="card-body">Ensure no reported problem is lost, forgotten, or unresolved. Every issue has an owner, a priority, and a traceable lifecycle from <strong>OPEN → IN PROGRESS → RESOLVED</strong>.</div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-icon">🔄</div>
+          <div class="card-title">The Lifecycle</div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+              <div style="display:flex;align-items:center;gap:10px"><span class="tag tag-rose">OPEN</span><span style="font-size:12px;color:var(--muted)">Newly reported incident</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span class="tag tag-amber">IN PROGRESS</span><span style="font-size:12px;color:var(--muted)">Being investigated by an agent</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span class="tag tag-green">RESOLVED</span><span style="font-size:12px;color:var(--muted)">Fix confirmed & closed</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span class="tag" style="background:rgba(148,163,184,0.15);color:#94a3b8;border:1px solid rgba(148,163,184,0.2)">REJECTED</span><span style="font-size:12px;color:var(--muted)">Invalid or duplicate, closed</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon">🏢</div>
+          <div class="card-title">In Our Context</div>
+          <div class="card-body">Ethio Telecom employees report IT & operational problems. Admins triage and assign to support agents. Agents investigate and resolve. The entire process is tracked digitally.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 4: PROBLEM STATEMENT ══ -->
+  <div class="slide" data-label="Problem Statement">
+    <div class="eyebrow">⚠️ Problem Statement</div>
+    <h2 class="section-title">Why We Built This</h2>
+    <p class="section-sub">Challenges faced without a centralized issue tracking system</p>
+    <div class="card-grid card-grid-2" style="margin-bottom:24px">
+      <div class="card" style="border-color:rgba(244,63,94,0.2)">
+        <div class="card-icon">📩</div>
+        <div class="card-title">Lost Reports</div>
+        <div class="card-body">Issues reported via email or verbal communication were easily forgotten, lost, or duplicated with no central record.</div>
+      </div>
+      <div class="card" style="border-color:rgba(245,166,35,0.2)">
+        <div class="card-icon">🤷</div>
+        <div class="card-title">No Accountability</div>
+        <div class="card-body">It was unclear who was responsible for resolving a given problem. No assignment, no deadline, no owner.</div>
+      </div>
+      <div class="card" style="border-color:rgba(245,166,35,0.2)">
+        <div class="card-icon">⏳</div>
+        <div class="card-title">Slow Resolution</div>
+        <div class="card-body">Without priority levels, critical issues sat unattended while minor ones got immediate attention — inefficient.</div>
+      </div>
+      <div class="card" style="border-color:rgba(168,85,247,0.2)">
+        <div class="card-icon">📊</div>
+        <div class="card-title">No Visibility</div>
+        <div class="card-body">Management had zero visibility into open incidents, resolution rates, or agent workloads. No data to act on.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;background:rgba(0,165,81,0.08);border:1px solid rgba(0,165,81,0.2);border-radius:14px;padding:16px 20px">
+      <span style="font-size:24px">💡</span>
+      <p style="font-size:14px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Solution:</strong> A dedicated web platform where employees report issues, admins triage and assign via round-robin, and agents resolve — with full audit trails, analytics, and real-time notifications.</p>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 5: TECH STACK ══ -->
+  <div class="slide" data-label="Technology Stack">
+    <div class="eyebrow">⚙️ Technology</div>
+    <h2 class="section-title">Technology Stack</h2>
+    <p class="section-sub">Modern, production-ready tools chosen for reliability and developer experience</p>
+    <div class="card-grid card-grid-3">
+      <div class="tech-item">
+        <div class="tech-icon">▲</div>
+        <div>
+          <div class="tech-name">Next.js 16</div>
+          <div class="tech-desc">Full-stack React framework managing both UI frontend and backend server APIs</div>
+        </div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">🎨</div>
+        <div>
+          <div class="tech-name">Tailwind CSS</div>
+          <div class="tech-desc">Utility-first CSS styling framework to build a responsive, custom web design at speed</div>
+        </div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">📦</div>
+        <div>
+          <div class="tech-name">shadcn/ui</div>
+          <div class="tech-desc">Component system providing customizable Card, Table, Badge, and Button interfaces</div>
+        </div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon" style="font-size:22px">🐘</div>
+        <div>
+          <div class="tech-name">PostgreSQL</div>
+          <div class="tech-desc">Production-grade relational database for user registers, incident logs, and histories</div>
+        </div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">△</div>
+        <div>
+          <div class="tech-name">Prisma ORM</div>
+          <div class="tech-desc">Type-safe query engine linking Next.js handlers to the database tables</div>
+        </div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-icon">🔐</div>
+        <div>
+          <div class="tech-name">NextAuth.js</div>
+          <div class="tech-desc">Session authentication middleware managing role permission gates</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 6: ARCHITECTURE ══ -->
+  <div class="slide" data-label="Architecture">
+    <div class="eyebrow">🏗️ Architecture</div>
+    <h2 class="section-title">System Architecture</h2>
+    <p class="section-sub">How the layers communicate from user browser to database</p>
+    <div class="flow" style="margin-bottom:32px">
+      <div class="flow-node">
+        <div class="flow-node-icon">🌐</div>
+        <div class="flow-node-label">Browser</div>
+        <div class="flow-node-sub">React / Next.js UI</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="border-color:rgba(0,165,81,0.3)">
+        <div class="flow-node-icon">🔐</div>
+        <div class="flow-node-label">Middleware</div>
+        <div class="flow-node-sub">NextAuth Session</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="flow-node-icon">⚙️</div>
+        <div class="flow-node-label">API Routes</div>
+        <div class="flow-node-sub">Next.js /api/*</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node" style="border-color:rgba(0,165,81,0.3)">
+        <div class="flow-node-icon">△</div>
+        <div class="flow-node-label">Prisma ORM</div>
+        <div class="flow-node-sub">Type-safe queries</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="flow-node-icon">🐘</div>
+        <div class="flow-node-label">PostgreSQL</div>
+        <div class="flow-node-sub">Docker container</div>
+      </div>
+    </div>
+    <div class="card-grid card-grid-3">
+      <div class="card">
+        <div class="card-title">📁 API Endpoints</div>
+        <div class="card-body" style="margin-top:8px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);line-height:2">
+            /api/auth/[...nextauth]<br/>
+            /api/register<br/>
+            /api/issues<br/>
+            /api/issues/[id]<br/>
+            /api/admin/users<br/>
+            /api/admin/users/[id]<br/>
+            /api/users/warnings<br/>
+            /api/admin/analytics
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🗄️ Database Models</div>
+        <div class="card-body" style="margin-top:8px">
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+            <span class="tag tag-green">User</span>
+            <span class="tag tag-blue">Issue</span>
+            <span class="tag tag-amber">IssueLog</span>
+            <span class="tag tag-purple">WarningHistory</span>
+            <span class="tag tag-rose">PasswordReset</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🛡️ Security Layers</div>
+        <div class="card-body" style="margin-top:8px;font-size:12px;line-height:2;color:var(--muted)">
+          ✓ Session-based JWT auth<br/>
+          ✓ Role-based route guards<br/>
+          ✓ Password hashing (bcrypt)<br/>
+          ✓ OTP email reset flow<br/>
+          ✓ File upload validation<br/>
+          ✓ Admin approval gate
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 7: USER ROLES ══ -->
+  <div class="slide" data-label="User Roles">
+    <div class="eyebrow">👥 Roles</div>
+    <h2 class="section-title">Three-Tier Role System</h2>
+    <p class="section-sub">Each role has distinct permissions, views, and responsibilities</p>
+    <div class="card-grid card-grid-3">
+      <div class="role-card" style="--accent-color:rgba(244,63,94,0.4)">
+        <div class="role-icon">🛡️</div>
+        <div class="role-name">Administrator</div>
+        <div class="role-label" style="color:var(--et-gold)">Full Control</div>
+        <div class="role-features">
+          <div class="role-feat">Approve/reject new registrations</div>
+          <div class="role-feat">View all incident reports</div>
+          <div class="role-feat">Auto-receive reports (round-robin)</div>
+          <div class="role-feat">Forward tickets to agents</div>
+          <div class="role-feat">Issue warnings & bans</div>
+          <div class="role-feat">Manage leave/resume status</div>
+          <div class="role-feat">View analytics dashboard</div>
+          <div class="role-feat">Export CSV & PDF reports</div>
+          <div class="role-feat">View warning histories</div>
+        </div>
+      </div>
+      <div class="role-card" style="--accent-color:rgba(245,166,35,0.4)">
+        <div class="role-icon">🎧</div>
+        <div class="role-name">Support Agent</div>
+        <div class="role-label" style="color:#fbbf24">Resolver</div>
+        <div class="role-features">
+          <div class="role-feat">View assigned tickets</div>
+          <div class="role-feat">Update ticket status</div>
+          <div class="role-feat">Add resolution notes</div>
+          <div class="role-feat">Resolve/close incidents</div>
+          <div class="role-feat">Request leave / resume</div>
+          <div class="role-feat">View own ticket queue</div>
+        </div>
+      </div>
+      <div class="role-card" style="--accent-color:rgba(0,165,81,0.4)">
+        <div class="role-icon">👤</div>
+        <div class="role-name">Employee</div>
+        <div class="role-label" style="color:var(--et-green)">Reporter</div>
+        <div class="role-features">
+          <div class="role-feat">Register and await approval</div>
+          <div class="role-feat">Submit incident reports</div>
+          <div class="role-feat">Attach screenshots</div>
+          <div class="role-feat">Track own report status</div>
+          <div class="role-feat">View warning notifications</div>
+          <div class="role-feat">Request leave / resume</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 8: KEY FEATURES ══ -->
+  <div class="slide" data-label="Key Features">
+    <div class="eyebrow">✨ Features</div>
+    <h2 class="section-title">Key Features</h2>
+    <p class="section-sub">Core capabilities that power the system</p>
+    <div class="card-grid card-grid-2">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">📝</span>
+          <strong style="font-size:15px">Incident Reporting</strong>
+        </div>
+        <div class="card-body">Employees submit reports with title, description, priority level, phone, address, and optional screenshot attachment. All fields validated before submission.</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">🔄</span>
+          <strong style="font-size:15px">Round-Robin Assignment</strong>
+        </div>
+        <div class="card-body">When a report is submitted, the system automatically assigns it to the next admin in rotation. Admins then forward to agents using the same round-robin logic.</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">⏱️</span>
+          <strong style="font-size:15px">Pending Approval Gate</strong>
+        </div>
+        <div class="card-body">New registrations require admin approval before users can log in or submit reports. Admins see pending registrations in a dedicated queue and approve/reject each one.</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">⚠️</span>
+          <strong style="font-size:15px">Warning System</strong>
+        </div>
+        <div class="card-body">Admins can issue formal warnings with written reasons. Each warning is logged to history. Users see a real-time bell icon in the navbar showing total warnings and all reasons.</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">🏖️</span>
+          <strong style="font-size:15px">Leave Management</strong>
+        </div>
+        <div class="card-body">Any user (employee, agent, or admin) can toggle leave status. While on leave, they are excluded from auto-assignment rotations and marked ON_LEAVE in the system.</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:22px">📊</span>
+          <strong style="font-size:15px">Analytics & Export</strong>
+        </div>
+        <div class="card-body">Admin dashboard features a 14-day bar chart of open/in-progress/resolved tickets. All incidents can be exported as CSV or PDF for reporting.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 9: SMART AUTOMATION ══ -->
+  <div class="slide" data-label="Smart Automation">
+    <div class="eyebrow">🤖 Automation</div>
+    <h2 class="section-title">Smart Automation</h2>
+    <p class="section-sub">Features that reduce manual work and ensure fairness</p>
+    <div class="content-split">
+      <div>
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot">🔄</div>
+            <div class="timeline-content">
+              <div class="timeline-title">Round-Robin Assignment</div>
+              <div class="timeline-desc">When a report is submitted, the system finds which admin was last assigned, then assigns to the <em>next</em> active admin in sequence. Ensures equal workload distribution.</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot">🔔</div>
+            <div class="timeline-content">
+              <div class="timeline-title">Real-Time Warning Alerts</div>
+              <div class="timeline-desc">Users receive instant bell notifications in the navbar when an admin issues a warning. The dropdown lists every warning with date and reason.</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot">📋</div>
+            <div class="timeline-content">
+              <div class="timeline-title">Audit Logs</div>
+              <div class="timeline-desc">Every action on a ticket (creation, assignment, status change) creates an IssueLog record — a full tamper-proof audit trail visible in the ticket detail page.</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot">🔒</div>
+            <div class="timeline-content">
+              <div class="timeline-title">Delete Protection</div>
+              <div class="timeline-desc">Once a ticket is assigned to an active support agent, deletion is forbidden at both the API level (returns 400) and UI level (button hidden).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:12px">🔐 Password Reset Flow</div>
+          <div class="flow" style="flex-direction:column;gap:8px">
+            <div class="flow-node" style="text-align:left;padding:10px 14px">
+              <div style="font-size:12px;font-weight:700">1. User requests reset</div>
+              <div style="font-size:11px;color:var(--muted)">Enters email address</div>
+            </div>
+            <div style="color:var(--et-green);text-align:center;font-size:16px">↓</div>
+            <div class="flow-node" style="text-align:left;padding:10px 14px">
+              <div style="font-size:12px;font-weight:700">2. OTP sent via email</div>
+              <div style="font-size:11px;color:var(--muted)">6-digit one-time password, 15 min expiry</div>
+            </div>
+            <div style="color:var(--et-green);text-align:center;font-size:16px">↓</div>
+            <div class="flow-node" style="text-align:left;padding:10px 14px">
+              <div style="font-size:12px;font-weight:700">3. User verifies OTP</div>
+              <div style="font-size:11px;color:var(--muted)">Sets new password securely</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:10px">📁 File Upload</div>
+          <div class="card-body">Screenshots attached to reports are uploaded to the server's <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--et-green)">/public/uploads/</code> directory and served as static assets. Supported: JPEG, PNG, WebP.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 10: DATABASE ══ -->
+  <div class="slide" data-label="Database Design">
+    <div class="eyebrow">🗄️ Database</div>
+    <h2 class="section-title">Database Design</h2>
+    <p class="section-sub">PostgreSQL schema powering the entire application</p>
+    <div class="content-split">
+      <div class="code-block" style="font-size:12px;flex:1">
+<span class="c-comment">// User model — all system actors</span><br/>
+<span class="c-key">model</span> <span class="c-val">User</span> {<br/>
+&nbsp;&nbsp;id           <span class="c-key">Int</span>      <span class="c-key">@id</span><br/>
+&nbsp;&nbsp;name         <span class="c-key">String</span><br/>
+&nbsp;&nbsp;email        <span class="c-key">String</span>   <span class="c-key">@unique</span><br/>
+&nbsp;&nbsp;role         <span class="c-val">Role</span>     <span class="c-comment">// ADMIN|AGENT|USER</span><br/>
+&nbsp;&nbsp;status       <span class="c-val">UserStatus</span> <span class="c-comment">// ACTIVE|PENDING|...</span><br/>
+&nbsp;&nbsp;warningCount <span class="c-key">Int</span>      <span class="c-key">@default</span>(0)<br/>
+&nbsp;&nbsp;warningLogs  <span class="c-val">WarningHistory</span>[]<br/>
+}<br/>
+<br/>
+<span class="c-comment">// Issue model — incident reports</span><br/>
+<span class="c-key">model</span> <span class="c-val">Issue</span> {<br/>
+&nbsp;&nbsp;id              <span class="c-key">Int</span>      <span class="c-key">@id</span><br/>
+&nbsp;&nbsp;title           <span class="c-key">String</span><br/>
+&nbsp;&nbsp;status          <span class="c-val">Status</span>   <span class="c-comment">// OPEN|IN_PROGRESS|...</span><br/>
+&nbsp;&nbsp;priority        <span class="c-val">Priority</span> <span class="c-comment">// LOW|MEDIUM|HIGH</span><br/>
+&nbsp;&nbsp;reportedById    <span class="c-key">Int</span>      <span class="c-comment">// FK → User</span><br/>
+&nbsp;&nbsp;assignedToId    <span class="c-key">Int?</span>     <span class="c-comment">// FK → User (nullable)</span><br/>
+&nbsp;&nbsp;logs            <span class="c-val">IssueLog</span>[]<br/>
+}
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title" style="margin-bottom:10px">🔗 Key Relationships</div>
+          <div class="card-body" style="font-size:13px;line-height:2">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="tag tag-green">User</span> → <span class="tag tag-blue">Issue (reported)</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="tag tag-green">User</span> → <span class="tag tag-blue">Issue (assigned)</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="tag tag-blue">Issue</span> → <span class="tag tag-amber">IssueLog (audit)</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="tag tag-green">User</span> → <span class="tag tag-purple">WarningHistory</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="margin-bottom:10px">✅ Data Integrity</div>
+          <div class="card-body" style="font-size:12px;line-height:2;color:var(--muted)">
+            ✓ Cascade delete on IssueLog<br/>
+            ✓ Cascade delete on WarningHistory<br/>
+            ✓ Unique constraint on email<br/>
+            ✓ Enum validation for roles & statuses<br/>
+            ✓ Nullable FK for optional assignment<br/>
+            ✓ Auto-timestamp on createdAt/updatedAt
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 11: WORKFLOW ══ -->
+  <div class="slide" data-label="Workflow">
+    <div class="eyebrow">🔀 Workflow</div>
+    <h2 class="section-title">End-to-End Workflow</h2>
+    <p class="section-sub">From registration to incident resolution — the full journey</p>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot">1</div>
+        <div class="timeline-content">
+          <div class="timeline-title">Employee Registers</div>
+          <div class="timeline-desc">New user signs up with name, email, password, and role. Account is created with PENDING status and blocked from accessing the system.</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">2</div>
+        <div class="timeline-content">
+          <div class="timeline-title">Admin Approves Registration</div>
+          <div class="timeline-desc">Admin sees the pending request in the Approvals tab. Clicks Approve → status becomes ACTIVE. User can now log in and access the platform.</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">3</div>
+        <div class="timeline-content">
+          <div class="timeline-title">Employee Reports an Issue</div>
+          <div class="timeline-desc">Employee submits a report with title, description, phone, address, priority, and optional screenshot. System auto-assigns via round-robin to an active admin.</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">4</div>
+        <div class="timeline-content">
+          <div class="timeline-title">Admin Reviews & Forwards to Agent</div>
+          <div class="timeline-desc">Admin sees the ticket in their Incident Queue (shown in blue as auto-assigned). Opens the ticket detail, selects "Assign to Support Agent" — round-robin picks next agent.</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">5</div>
+        <div class="timeline-content">
+          <div class="timeline-title">Agent Resolves the Issue</div>
+          <div class="timeline-desc">Agent sees the ticket in their dashboard, investigates, updates status to IN_PROGRESS, and finally marks as RESOLVED. All actions are logged to the audit trail.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 12: CONCLUSION ══ -->
+  <div class="slide" data-label="Conclusion">
+    <div class="eyebrow">🏁 Conclusion</div>
+    <h2 class="section-title">Impact & Outcomes</h2>
+    <p class="section-sub">What this system delivers for Ethio Telecom</p>
+    <div class="card-grid card-grid-4" style="margin-bottom:28px">
+      <div class="stat-card">
+        <div class="stat-number grad">3</div>
+        <div class="stat-label">User Roles with distinct access control</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number grad">8+</div>
+        <div class="stat-label">REST API endpoints powering the system</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number grad">5</div>
+        <div class="stat-label">Database models with full relations</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number grad">∞</div>
+        <div class="stat-label">Audit trail — every action logged forever</div>
+      </div>
+    </div>
+    <div class="card-grid card-grid-3">
+      <div class="card" style="border-color:rgba(0,165,81,0.3)">
+        <div class="card-icon">✅</div>
+        <div class="card-title">Zero Lost Reports</div>
+        <div class="card-body">Every submitted incident is stored in the database and tracked through to resolution. Nothing falls through the cracks.</div>
+      </div>
+      <div class="card" style="border-color:rgba(0,165,81,0.3)">
+        <div class="card-icon">⚖️</div>
+        <div class="card-title">Fair Workload Distribution</div>
+        <div class="card-body">Round-robin assignment ensures no single admin or agent is overloaded. Leave status is respected in rotation.</div>
+      </div>
+      <div class="card" style="border-color:rgba(0,165,81,0.3)">
+        <div class="card-icon">🔍</div>
+        <div class="card-title">Full Accountability</div>
+        <div class="card-body">Every action is logged, every warning is recorded, every assignment is traceable. Admins have complete visibility into the system.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 13: THANK YOU ══ -->
+  <div class="slide" data-label="Thank You">
+    <div class="cover-wrap" style="align-items:center;text-align:center">
+      <div style="font-size:60px;margin-bottom:24px">🙏</div>
+      <div class="cover-badge" style="margin:0 auto 28px">
+        <span>🏢</span> Ethio Telecom — IT Internship
+      </div>
+      <h1 class="cover-title" style="font-size:clamp(40px,5vw,64px)">
+        Thank <span class="grad">You</span>
+      </h1>
+      <p class="cover-sub" style="margin:0 auto 32px">
+        Built with Next.js · shadcn/ui · Tailwind CSS · PostgreSQL · Prisma · NextAuth · Docker
+      </p>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:40px">
+        <span class="tag tag-green">Issue Reporting</span>
+        <span class="tag tag-blue">Role-Based Access</span>
+        <span class="tag tag-amber">Round-Robin</span>
+        <span class="tag tag-purple">Warning History</span>
+        <span class="tag tag-rose">Audit Logs</span>
+        <span class="tag tag-green">Analytics</span>
+        <span class="tag tag-blue">PDF/CSV Export</span>
+        <span class="tag tag-amber">Leave Management</span>
+        <span class="tag tag-purple">OTP Password Reset</span>
+        <span class="tag tag-rose">File Uploads</span>
+      </div>
+      <div style="font-size:15px;color:var(--muted)">Questions & Discussion</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation Controls -->
+<div class="nav">
+  <button class="nav-btn" id="prevBtn" onclick="navigate(-1)">← Prev</button>
+  <div class="nav-dots" id="navDots"></div>
+  <span class="slide-counter" id="slideCounter">1 / 13</span>
+  <button class="nav-btn" id="nextBtn" onclick="navigate(1)">Next →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  let prev = -1;
+
+  const progressFill = document.getElementById('progressFill');
+  const slideCounter = document.getElementById('slideCounter');
+  const slideLabel = document.getElementById('slideLabel');
+  const navDots = document.getElementById('navDots');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  // Build dots
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.title = slides[i].dataset.label || 'Slide ' + (i+1);
+    dot.onclick = () => goTo(i);
+    navDots.appendChild(dot);
+  }
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= total) return;
+    const dots = navDots.querySelectorAll('.dot');
+    if (prev >= 0) {
+      slides[prev].classList.remove('active');
+      slides[prev].classList.add('exit');
+      setTimeout(() => slides[prev].classList.remove('exit'), 500);
+    }
+    prev = current;
+    current = idx;
+    slides[current].classList.remove('exit');
+    slides[current].classList.add('active');
+    if (prev >= 0 && prev !== current) {
+      slides[prev].classList.remove('active');
+    }
+
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+    progressFill.style.width = ((current + 1) / total * 100) + '%';
+    slideCounter.textContent = (current + 1) + ' / ' + total;
+    slideLabel.textContent = slides[current].dataset.label || '';
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === total - 1;
+  }
+
+  function navigate(dir) { goTo(current + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); navigate(-1); }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End') goTo(total - 1);
+  });
+
+  // Touch swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1);
+  });
+
+  goTo(0);
+</script>
+</body>
+</html>

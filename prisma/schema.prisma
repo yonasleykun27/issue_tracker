@@ -1,0 +1,101 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  status       UserStatus @default(PENDING)
+  warningCount Int      @default(0)
+  statusReason String?
+  
+  reportedIssues Issue[] @relation("ReportedIssues")
+  assignedIssues Issue[] @relation("AssignedIssues")
+  assignedAdminIssues Issue[] @relation("AssignedAdminIssues")
+  issueLogs      IssueLog[]
+  warningLogs    WarningHistory[]
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  USER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  WARNED
+  BANNED
+  ON_LEAVE
+}
+
+model Issue {
+  id              Int      @id @default(autoincrement())
+  title           String
+  description     String
+  status          Status   @default(OPEN)
+  priority        Priority @default(MEDIUM)
+  imageUrl        String?
+  phone           String?
+  address         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  rejectionReason String?
+  
+  reportedById Int
+  reportedBy   User     @relation("ReportedIssues", fields: [reportedById], references: [id])
+  
+  assignedToId Int?
+  assignedTo   User?    @relation("AssignedIssues", fields: [assignedToId], references: [id])
+
+  assignedAdminId Int?
+  assignedAdmin   User?    @relation("AssignedAdminIssues", fields: [assignedAdminId], references: [id])
+
+  logs         IssueLog[]
+}
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model IssueLog {
+  id        Int      @id @default(autoincrement())
+  issueId   Int
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  actorId   Int
+  actor     User     @relation(fields: [actorId], references: [id])
+  action    String
+  createdAt DateTime @default(now())
+}
+
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  otp       String
+  expiresAt DateTime
+}
+
+model WarningHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String
+  createdAt DateTime @default(now())
+}
