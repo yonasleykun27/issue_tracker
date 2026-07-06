@@ -2,6 +2,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-15.x-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4+-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white)](https://ui.shadcn.com/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
@@ -32,7 +33,7 @@ A modern, robust, and secure multi-role **Issue Tracking & Management System** d
 
 ## 🛠️ Tech Stack & Architecture
 
-- **Frontend:** Next.js (App Router), React, Tailwind CSS (built on Shadcn UI/Radix primitives).
+- **Frontend & UI:** Next.js (App Router), React, Tailwind CSS, and **[shadcn/ui](https://ui.shadcn.com/)** for beautifully styled, accessible component primitives.
 - **Backend & Database:** Next.js Server Actions, REST API Routes, Prisma ORM, and PostgreSQL.
 - **Authentication:** NextAuth.js (Session-based, custom credentials provider).
 - **Email Delivery:** NodeMailer for password reset OTP codes.
