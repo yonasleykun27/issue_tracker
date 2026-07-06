@@ -48,3 +48,7 @@ eslint_*.txt
 # scratch/temporary scripts
 /scratch/
 
+# presentation files
+presentation.html
+
+
