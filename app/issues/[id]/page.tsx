@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import { FaTrash, FaSave, FaArrowLeft, FaUpload, FaTimes, FaHistory, FaCheck } from 'react-icons/fa'
+import { FaTrash, FaSave, FaArrowLeft, FaUpload, FaTimes, FaHistory, FaCheck, FaTimesCircle, FaEye } from 'react-icons/fa'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,22 +13,15 @@ import { Button } from '@/components/ui/button'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
+import dynamic from 'next/dynamic'
+
+const RichTextEditor = dynamic(() => import('@/app/components/RichTextEditor'), { ssr: false })
 
 interface ExtendedUser {
   id?: string
   role?: string
   name?: string | null
   email?: string | null
-}
-
-interface IssueUpdateBody {
-  title?: string
-  description?: string
-  status?: string
-  priority?: string
-  assignedToId?: string | null
-  imageUrl?: string | null
-  rejectionReason?: string | null
 }
 
 interface IssueLog {
@@ -40,83 +34,175 @@ interface IssueLog {
   }
 }
 
+interface Issue {
+  id: number
+  title: string
+  description: string
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'REJECTED'
+  priority: 'LOW' | 'MEDIUM' | 'HIGH'
+  imageUrl?: string | null
+  phone?: string | null
+  address?: string | null
+  reportedById: number
+  assignedToId?: number | null
+  assignedTo?: {
+    id: number
+    name: string
+    role: string
+  } | null
+  reportedBy?: {
+    name: string
+    email: string
+  } | null
+  rejectionReason?: string | null
+}
+
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const mode = searchParams.get('mode')
   const { id } = use(params)
   const { data: session } = useSession()
+  const queryClient = useQueryClient()
+
   const userRole = (session?.user as ExtendedUser)?.role || 'USER'
   const currentUserId = parseInt((session?.user as ExtendedUser)?.id || '0')
-  
+  const userStatus = (session?.user as any)?.status
+
+  // Redirect if pending approval
+  useEffect(() => {
+    if (session && userStatus === 'PENDING') {
+      router.replace('/')
+    }
+  }, [session, userStatus, router])
+
+  // Form states
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState('OPEN')
   const [priority, setPriority] = useState('MEDIUM')
   const [assignedToId, setAssignedToId] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [reportedById, setReportedById] = useState<number | null>(null)
-  const [phone, setPhone] = useState<string | null>(null)
-  const [address, setAddress] = useState<string | null>(null)
-  
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [logs, setLogs] = useState<IssueLog[]>([])
-  const [logsLoading, setLogsLoading] = useState(true)
+  const [rejectionReason, setRejectionReason] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [assignedToRole, setAssignedToRole] = useState<string | null>(null)
-  const [assignedToName, setAssignedToName] = useState<string | null>(null)
-  const [rejectionReason, setRejectionReason] = useState<string | null>(null)
-  const [allIssues, setAllIssues] = useState<any[]>([])
+  const [showRejectModal, setShowRejectModal] = useState(false)
 
-  useEffect(() => {
-    // Fetch users and issue data
-    const fetchPromises: Promise<any>[] = [
+  // Image Upload State
+  const [uploading, setUploading] = useState(false)
+
+  // 1. Query for Issue Details
+  const { data: issue, isLoading: loading } = useQuery<Issue>({
+    queryKey: ['issue-detail', id],
+    queryFn: () =>
       fetch(`/api/issues/${id}`).then((res) => {
         if (!res.ok) throw new Error()
         return res.json()
       })
-    ]
+  })
 
-    // Only load users and all issues if user is admin
-    if (userRole === 'ADMIN') {
-      fetchPromises.push(fetch('/api/admin/users').then((res) => res.json()))
-      fetchPromises.push(fetch('/api/issues?scope=all').then((res) => res.json()))
+  const isAssignedToAgent = !!(issue?.assignedTo && issue.assignedTo.role === 'AGENT')
+
+  // 2. Query for Activity Logs
+  const { data: logs = [], isLoading: logsLoading } = useQuery<IssueLog[]>({
+    queryKey: ['issue-logs', id],
+    queryFn: () => fetch(`/api/issues/${id}/logs`).then((res) => (res.ok ? res.json() : []))
+  })
+
+  // 3. Query for Users (Admins only)
+  const { data: users = [] } = useQuery<{ id: number; name: string; role: string }[]>({
+    queryKey: ['users-list'],
+    queryFn: () => fetch('/api/users').then((res) => (res.ok ? res.json() : [])),
+    enabled: userRole === 'ADMIN'
+  })
+
+  // Populate form states when issue data is fetched
+  useEffect(() => {
+    if (issue) {
+      setTitle(issue.title)
+      setDescription(issue.description)
+      setStatus(issue.status)
+      setPriority(issue.priority)
+      setAssignedToId(issue.assignedToId ? issue.assignedToId.toString() : '')
+      setImageUrl(issue.imageUrl || null)
+      setRejectionReason(issue.rejectionReason || '')
     }
+  }, [issue])
 
-    Promise.all(fetchPromises)
-      .then(([issueData, usersData, issuesData]) => {
-        if (usersData) setUsers(usersData)
-        if (issuesData) setAllIssues(issuesData)
-        setTitle(issueData.title)
-        setDescription(issueData.description)
-        setStatus(issueData.status)
-        setPriority(issueData.priority)
-        setAssignedToId(issueData.assignedToId ? issueData.assignedToId.toString() : '')
-        setImageUrl(issueData.imageUrl)
-        setReportedById(issueData.reportedById)
-        setPhone(issueData.phone || null)
-        setAddress(issueData.address || null)
-        setAssignedToRole(issueData.assignedTo ? issueData.assignedTo.role : null)
-        setAssignedToName(issueData.assignedTo ? issueData.assignedTo.name : null)
-        setRejectionReason(issueData.rejectionReason || null)
-      })
-      .catch(() => {
-        toast.error('Failed to load issue details')
-        router.push(userRole === 'ADMIN' ? '/issues' : '/')
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+  // Mutations
+  const updateMutation = useMutation({
+    mutationFn: (body: any) =>
+      fetch(`/api/issues/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then((res) => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      }),
+    onSuccess: () => {
+      toast.success('Incident updated successfully!')
+      queryClient.invalidateQueries({ queryKey: ['issue-detail', id] })
+      queryClient.invalidateQueries({ queryKey: ['issue-logs', id] })
+      queryClient.invalidateQueries({ queryKey: ['issues-all'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-issues'] })
+      queryClient.invalidateQueries({ queryKey: ['agent-issues'] })
+      queryClient.invalidateQueries({ queryKey: ['user-issues'] })
+      router.push(userRole === 'ADMIN' ? '/issues' : '/')
+    },
+    onError: () => toast.error('Failed to update incident')
+  })
+  const approveMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/issues/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(async (res) => {
+        const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to approve incident')
+        }
+        return data
+      }),
+    onSuccess: () => {
+      toast.success('Incident approved and assigned to agent successfully!')
+      queryClient.invalidateQueries({ queryKey: ['issue-detail', id] })
+      queryClient.invalidateQueries({ queryKey: ['issue-logs', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-issues'] })
+      queryClient.invalidateQueries({ queryKey: ['issues-all'] })
+      router.push('/')
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to approve incident')
+    }
+  })
 
-    // Fetch activity logs
-    fetch(`/api/issues/${id}/logs`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => setLogs(data))
-      .catch(() => setLogs([]))
-      .finally(() => setLogsLoading(false))
-  }, [id, router, userRole])
+  const handleRejectConfirm = () => {
+    if (!rejectionReason.trim()) {
+      toast.error('Rejection reason is required.')
+      return
+    }
+    updateMutation.mutate({
+      status: 'REJECTED',
+      rejectionReason: rejectionReason
+    })
+    setShowRejectModal(false)
+  }
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/issues/${id}`, { method: 'DELETE' }).then((res) => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      }),
+    onSuccess: () => {
+      toast.success('Incident deleted successfully!')
+      queryClient.invalidateQueries({ queryKey: ['issues-all'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-issues'] })
+      queryClient.invalidateQueries({ queryKey: ['agent-issues'] })
+      queryClient.invalidateQueries({ queryKey: ['user-issues'] })
+      router.push(userRole === 'ADMIN' ? '/issues' : '/')
+    },
+    onError: () => toast.error('Failed to delete incident')
+  })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -131,9 +217,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         method: 'POST',
         body: formData
       })
-
       if (!response.ok) throw new Error()
-      
       const data = await response.json()
       setImageUrl(data.url)
       toast.success('Screenshot updated!')
@@ -144,397 +228,384 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdateSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true)
 
-    const isAssigned = !!(assignedToId && assignedToRole === 'AGENT')
+    const isAssigned = !!(issue?.assignedToId && issue?.assignedTo?.role === 'AGENT')
 
-    // Construct body depending on role to match API expectations
-    const body: IssueUpdateBody = {}
+    const body: any = {}
     if (userRole === 'ADMIN') {
       body.title = title
       body.description = description
       body.status = status
       body.priority = priority
-      body.assignedToId = assignedToId || null
-      body.imageUrl = imageUrl || null
+      body.assignedToId = assignedToId ? parseInt(assignedToId) : null
+      body.imageUrl = imageUrl
       body.rejectionReason = status === 'REJECTED' ? rejectionReason : null
     } else if (userRole === 'AGENT') {
       body.status = status
-      body.priority = priority
     } else {
-      // USER Role
       body.priority = priority
       if (!isAssigned) {
         body.title = title
         body.description = description
-        body.imageUrl = imageUrl || null
+        body.imageUrl = imageUrl
       }
     }
 
-    try {
-      const response = await fetch(`/api/issues/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      })
-
-      if (!response.ok) throw new Error()
-
-       toast.success('Issue updated successfully!')
-      router.push(userRole === 'ADMIN' ? '/issues' : '/')
-      router.refresh()
-    } catch (error) {
-      toast.error('Failed to update issue')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleDelete = () => {
-    setShowDeleteModal(true)
-  }
-
-  const confirmDelete = async () => {
-    setDeleting(true)
-    setShowDeleteModal(false)
-
-    try {
-      const response = await fetch(`/api/issues/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (!response.ok) throw new Error()
-
-      toast.success('Issue deleted successfully!')
-      router.push(userRole === 'ADMIN' ? '/issues' : '/')
-      router.refresh()
-    } catch (error) {
-      toast.error('Failed to delete issue')
-      setDeleting(false)
-    }
+    updateMutation.mutate(body)
   }
 
   if (loading) {
-    return <div className="text-center py-20 text-zinc-500 text-sm">Loading issue details...</div>
+    return (
+      <div className="flex justify-center items-center min-h-[50vh] text-zinc-500 text-sm">
+        Loading incident details...
+      </div>
+    )
   }
 
-  // Permission Checks:
-  const isReporter = reportedById === currentUserId
-  const isAssignedAgent = assignedToId === currentUserId.toString()
-  const isAssigned = !!(assignedToId && assignedToRole === 'AGENT')
-  
-  // USER can edit title, description, and image ONLY if the ticket is unassigned
-  const canEditTitleDescImage = userRole === 'ADMIN' || (userRole === 'USER' && isReporter && !isAssigned && status !== 'RESOLVED')
-  
-  // Status editing permissions
-  const canEditStatus = userRole === 'ADMIN' || (userRole === 'AGENT' && isAssignedAgent)
-  
-  // Priority editing permissions (User reporter can always update priority to flag changes)
-  const canEditPriority = userRole === 'ADMIN' || (userRole === 'USER' && isReporter && status !== 'RESOLVED') || (userRole === 'AGENT' && isAssignedAgent)
-  
-  const canAssign = userRole === 'ADMIN'
-  const canDelete = userRole === 'ADMIN' || (userRole === 'USER' && isReporter)
+  if (!issue) {
+    return (
+      <div className="flex justify-center items-center min-h-[50vh] text-zinc-500 text-sm">
+        Incident not found.
+      </div>
+    )
+  }
+
+  const isReporter = issue.reportedById === currentUserId
+  const isAssignedAgent = issue.assignedToId === currentUserId
+  const isAssigned = !!(issue.assignedToId && issue.assignedTo?.role === 'AGENT')
+
+  const canEditTitleDescImage = (userRole === 'ADMIN' && issue.status !== 'RESOLVED') || (userRole === 'USER' && isReporter && !isAssigned && issue.status !== 'RESOLVED')
+  const canEditStatus = userRole === 'AGENT' && isAssignedAgent && issue.status !== 'RESOLVED' && issue.status !== 'REJECTED'
+  const canEditPriority = (userRole === 'ADMIN' && issue.status !== 'RESOLVED') || (userRole === 'USER' && isReporter && issue.status !== 'RESOLVED')
+  const canAssign = userRole === 'ADMIN' && issue.status !== 'RESOLVED'
+  const canDelete = userRole === 'ADMIN'
+
+  const getStatusOptions = () => {
+    const options = []
+    
+    // Always include current status in options so it can show correctly
+    if (issue.status === 'OPEN') options.push({ value: 'OPEN', label: 'Open' })
+    if (issue.status === 'IN_PROGRESS') options.push({ value: 'IN_PROGRESS', label: 'In Progress' })
+    if (issue.status === 'RESOLVED') options.push({ value: 'RESOLVED', label: 'Resolved' })
+    if (issue.status === 'REJECTED') options.push({ value: 'REJECTED', label: 'Rejected' })
+
+    // Agent can only transition forward:
+    // OPEN -> IN_PROGRESS
+    // IN_PROGRESS -> RESOLVED
+    if (userRole === 'AGENT' && isAssignedAgent) {
+      if (issue.status === 'OPEN' && !options.some(o => o.value === 'IN_PROGRESS')) {
+        options.push({ value: 'IN_PROGRESS', label: 'In Progress' })
+      }
+      if (issue.status === 'IN_PROGRESS' && !options.some(o => o.value === 'RESOLVED')) {
+        options.push({ value: 'RESOLVED', label: 'Resolved' })
+      }
+    }
+
+    return options
+  }
 
   return (
-    <div className="max-w-3xl mx-auto p-4 mt-8">
+    <div className="max-w-3xl mx-auto space-y-6">
       <Card className="border border-zinc-100 shadow-sm rounded-2xl bg-white overflow-hidden p-2">
         <CardHeader className="flex flex-row items-center justify-between border-b border-zinc-50 pb-4 mb-4">
           <div className="space-y-1">
-            <Link href="/" className="flex items-center space-x-1.5 text-zinc-500 hover:text-brand-green text-xs transition-colors mb-2">
+            <Link
+              href={userRole === 'ADMIN' && mode === 'edit' ? "/issues" : "/"}
+              className="flex items-center space-x-1.5 text-zinc-500 hover:text-brand-green text-xs transition-colors mb-2"
+            >
               <FaArrowLeft size={10} />
-              <span>Back to Dashboard</span>
+              <span>{userRole === 'ADMIN' && mode === 'edit' ? "Back to All Incidents" : "Back to Dashboard"}</span>
             </Link>
             <CardTitle className="text-2xl font-extrabold text-zinc-950">
-              TKT-{String(parseInt(id)).padStart(4, '0')}
+              TKT-{String(issue.id).padStart(4, '0')}
             </CardTitle>
           </div>
-          
-          <div className="flex items-center gap-2">
+
+          {canDelete && (
             <Button
-              onClick={() => window.print()}
-              variant="outline"
-              className="flex items-center space-x-1.5 border-zinc-200 hover:bg-zinc-50 font-semibold cursor-pointer text-zinc-700 text-xs no-print h-9"
+              onClick={() => setShowDeleteModal(true)}
+              variant="destructive"
+              className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium cursor-pointer"
             >
-              <span>📄 Download PDF</span>
+              <FaTrash size={12} />
+              <span>Delete</span>
             </Button>
-            {/* Hide delete button if user doesn't have delete rights */}
-            {canDelete && (
-              <Button
-                onClick={handleDelete}
-                disabled={deleting}
-                variant="destructive"
-                className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium cursor-pointer text-xs no-print h-9"
-              >
-                <FaTrash size={12} />
-                <span>{deleting ? 'Deleting...' : 'Delete'}</span>
-              </Button>
-            )}
-          </div>
+          )}
         </CardHeader>
 
         <CardContent>
-          {status === 'REJECTED' && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-5 flex gap-3 text-red-800 animate-in fade-in duration-200">
-              <span className="text-xl shrink-0">❌</span>
-              <div>
-                <h4 className="font-bold text-red-900">Incident Report Rejected</h4>
-                <p className="text-sm mt-0.5 font-medium">
-                  This incident report has been rejected by the administrator.
-                </p>
-                <p className="text-xs bg-red-100/50 border border-red-200 rounded-lg p-2.5 mt-2 font-mono text-red-950 max-w-2xl">
-                  {rejectionReason || 'No specific rejection reason was provided by the administrator.'}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <form onSubmit={handleUpdate} className="space-y-6">
-            <div>
-              <label htmlFor="title" className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Issue Title
-              </label>
-              <Input
-                id="title"
-                type="text"
-                required
-                disabled={!canEditTitleDescImage}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="disabled:opacity-75 disabled:bg-zinc-50 focus-visible:ring-brand-green"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="status" className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                  Status
-                </label>
-                <select
-                  id="status"
-                  value={status}
-                  disabled={!canEditStatus}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green disabled:opacity-75 disabled:bg-zinc-50"
-                >
-                  <option value="OPEN">Open</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="RESOLVED">Resolved</option>
-                  {(status === 'REJECTED' || userRole === 'ADMIN') && (
-                    <option value="REJECTED">Rejected</option>
-                  )}
-                </select>
+          {issue.status === 'RESOLVED' || issue.status === 'REJECTED' || (userRole === 'ADMIN' && mode !== 'edit') ? (
+            <div className="space-y-6">
+              {/* Detailed presentation before approval */}
+              <div className="border-b border-zinc-100 dark:border-zinc-800 pb-4">
+                <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Issue Title</span>
+                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 leading-snug">{issue.title}</h1>
               </div>
 
-              <div>
-                <label htmlFor="priority" className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                  Priority
-                </label>
-                <select
-                  id="priority"
-                  value={priority}
-                  disabled={!canEditPriority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green disabled:opacity-75 disabled:bg-zinc-50"
-                >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                  Assign To
-                </label>
-                {canAssign ? (
-                  assignedToRole === 'AGENT' ? (
-                    <div className="bg-green-50 border border-green-100 rounded-xl p-3.5 text-sm font-semibold text-green-700 flex items-center gap-2">
-                      <FaCheck />
-                      Forwarded to agent: {assignedToName || 'Support Staff'}
-                    </div>
-                  ) : (
-                    (() => {
-                      const agentsList = users.filter(u => u.role === 'AGENT' && u.status === 'ACTIVE')
-                      if (agentsList.length === 0) {
-                        return <div className="text-sm text-zinc-500 italic p-3 bg-zinc-50 border border-zinc-200 rounded-xl">No active support agents available for assignment.</div>
-                      }
-                      const assignedToAgentIssues = [...allIssues]
-                        .filter(i => i.assignedToId && agentsList.some(a => a.id === i.assignedToId))
-                        .sort((a, b) => b.id - a.id)
-                      const lastAssignedIssue = assignedToAgentIssues[0]
-                      let nextAgent = agentsList[0]
-                      if (lastAssignedIssue && lastAssignedIssue.assignedToId) {
-                        const lastIndex = agentsList.findIndex(a => a.id === lastAssignedIssue.assignedToId)
-                        if (lastIndex !== -1) {
-                          nextAgent = agentsList[(lastIndex + 1) % agentsList.length]
-                        }
-                      }
-                      return (
-                        <div className="flex flex-col gap-2 p-3 bg-zinc-50 border border-zinc-200 rounded-xl">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Next Agent in Rotation</p>
-                              <p className="text-sm font-bold text-zinc-800">{nextAgent.name} <span className="text-xs font-normal text-zinc-400">({nextAgent.role})</span></p>
-                            </div>
-                            <Button
-                              type="button"
-                              size="xs"
-                              className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold cursor-pointer shrink-0"
-                              onClick={() => {
-                                setAssignedToId(nextAgent.id.toString())
-                                setAssignedToRole('AGENT')
-                                setAssignedToName(nextAgent.name)
-                              }}
-                            >
-                              Assign
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })()
-                  )
-                ) : (
-                  <div className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-500 bg-zinc-50">
-                    {(assignedToId && assignedToRole === 'AGENT') ? `Forwarded to ${assignedToName || 'support staff'}` : 'Unassigned'}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {status === 'REJECTED' && userRole === 'ADMIN' && (
-              <div>
-                <label htmlFor="rejectionReason" className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                  Rejection Reason
-                </label>
-                <Textarea
-                  id="rejectionReason"
-                  required
-                  value={rejectionReason || ''}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Please enter the rejection reason..."
-                  rows={3}
-                  className="focus-visible:ring-brand-green"
+              <div className="border-b border-zinc-100 dark:border-zinc-800 pb-4">
+                <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Description</span>
+                <div
+                  className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed font-sans font-medium tiptap"
+                  dangerouslySetInnerHTML={{ __html: issue.description }}
                 />
               </div>
-            )}
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Description
-              </label>
-              <Textarea
-                id="description"
-                rows={6}
-                required
-                disabled={!canEditTitleDescImage}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="disabled:opacity-75 disabled:bg-zinc-50 focus-visible:ring-brand-green"
-              />
-            </div>
-
-            {/* Read-only contact info from the original report */}
-            {(phone || address) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-zinc-50/60 border border-zinc-100 rounded-xl p-4">
-                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider col-span-full mb-1">Reporter Contact Info</p>
-                {phone && (
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-500 mb-0.5">📞 Phone Number</label>
-                    <p className="text-sm font-semibold text-zinc-800">{phone}</p>
-                  </div>
-                )}
-                {address && (
-                  <div>
-                    <label className="block text-xs font-semibold text-zinc-500 mb-0.5">📍 Problem Location</label>
-                    <p className="text-sm font-semibold text-zinc-800">{address}</p>
-                  </div>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+                <div>
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Priority</span>
+                  <Badge variant="outline" className={`font-semibold rounded-full border-none px-2.5 py-0.5 mt-0.5 text-xs ${
+                    priority === 'HIGH' ? 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400' :
+                    priority === 'MEDIUM' ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400' :
+                    'bg-zinc-100 dark:bg-zinc-850 text-zinc-700 dark:text-zinc-300'
+                  }`}>
+                    {priority}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Reporter</span>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">{issue.reportedBy?.name || 'Unknown'}</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-550 font-medium truncate">{issue.reportedBy?.email || ''}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Assigned Agent</span>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">{issue.assignedTo?.name || 'Unassigned'}</p>
+                  {issue.assignedTo && (
+                    <p className="text-xs text-zinc-450 dark:text-zinc-500 font-medium truncate">{issue.assignedTo.role}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Status</span>
+                  <Badge variant="outline" className={`font-semibold rounded-full border-none px-2.5 py-0.5 mt-0.5 text-xs ${
+                    issue.status === 'OPEN' ? 'bg-rose-50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400' :
+                    issue.status === 'IN_PROGRESS' ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400' :
+                    issue.status === 'RESOLVED' ? 'bg-green-555/10 dark:bg-green-950/20 text-green-700 dark:text-green-400' :
+                    'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-350'
+                  }`}>
+                    {issue.status.replace('_', ' ')}
+                  </Badge>
+                </div>
               </div>
-            )}
 
-            {/* Display Image Attachment or Uploader depending on edit rights */}
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Image Attachment
-              </label>
-              {canEditTitleDescImage ? (
-                imageUrl ? (
-                  <div className="relative border border-zinc-200 rounded-lg p-2 max-w-xs bg-zinc-50 flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded overflow-hidden">
-                      <Image
-                        src={imageUrl}
-                        alt="Attachment Preview"
-                        fill
-                        className="object-cover"
-                      />
+              {issue.status === 'REJECTED' && issue.rejectionReason && (
+                <div className="bg-red-50 dark:bg-red-950/20 border border-red-150 dark:border-red-900 rounded-xl p-4 text-sm text-red-700 dark:text-red-400">
+                  <span className="font-bold block mb-1">🚫 Rejection Reason:</span>
+                  <p>{issue.rejectionReason}</p>
+                </div>
+              )}
+
+              {(issue.phone || issue.address) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-950/30 border border-zinc-100 dark:border-zinc-800 rounded-xl p-4">
+                  <p className="text-xs font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-wider col-span-full mb-1">Reporter Contact Info</p>
+                  {issue.phone && (
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-450 mb-0.5">📞 Phone Number</label>
+                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{issue.phone}</p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-zinc-700 truncate">Screenshot attached</p>
-                      <button 
-                        type="button" 
-                        onClick={() => setImageUrl(null)}
-                        className="text-[10px] font-bold text-red-600 hover:underline flex items-center gap-1 mt-1 cursor-pointer"
-                      >
-                        <FaTimes className="inline mr-1" /> Remove
-                      </button>
+                  )}
+                  {issue.address && (
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-450 mb-0.5">📍 Problem Location</label>
+                      <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">{issue.address}</p>
                     </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1.5">Attached Image</span>
+                {imageUrl ? (
+                  <div className="relative w-full max-w-md h-64 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-zinc-50 dark:bg-zinc-950/50">
+                    <Image src={imageUrl} alt="Incident Screenshot" fill className="object-contain" />
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 hover:border-brand-green rounded-xl p-6 cursor-pointer bg-zinc-50/50 hover:bg-green-50/20 transition-all text-zinc-500 max-w-md">
-                    <FaUpload className="text-zinc-400 mb-2" size={20} />
-                    <span className="text-xs font-semibold">
-                      {uploading ? 'Uploading image...' : 'Click to change or add screenshot'}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploading}
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
+                  <div className="text-sm text-zinc-400 dark:text-zinc-650 italic">No screenshot attached.</div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleUpdateSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="title" className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                  Issue Title
+                </label>
+                <Input
+                  id="title"
+                  type="text"
+                  required
+                  disabled={!canEditTitleDescImage}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="disabled:opacity-75 disabled:bg-zinc-50 focus-visible:ring-brand-green"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="status" className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                    Status
                   </label>
-                )
-              ) : (
-                imageUrl ? (
+                  <select
+                    id="status"
+                    value={status}
+                    disabled={!canEditStatus}
+                    onChange={(e) => {
+                      const nextStatus = e.target.value
+                      setStatus(nextStatus)
+                      if (nextStatus === 'REJECTED') {
+                        setShowRejectModal(true)
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green disabled:opacity-75 disabled:bg-zinc-50 cursor-pointer"
+                  >
+                    {getStatusOptions().map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="priority" className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                    Priority
+                  </label>
+                  <select
+                    id="priority"
+                    value={priority}
+                    disabled={!canEditPriority}
+                    onChange={(e) => setPriority(e.target.value as any)}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green disabled:opacity-75 disabled:bg-zinc-50 cursor-pointer"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="assignedTo" className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                    Assign To
+                  </label>
+                  {canAssign ? (
+                    <select
+                      id="assignedTo"
+                      value={assignedToId}
+                      onChange={(e) => setAssignedToId(e.target.value)}
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green cursor-pointer"
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-500 bg-zinc-50">
+                      {issue.assignedTo ? `Assigned to: ${issue.assignedTo.name}` : 'Unassigned'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                  Description
+                </label>
+                <RichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  disabled={!canEditTitleDescImage}
+                />
+              </div>
+
+              {(issue.phone || issue.address) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-zinc-50/60 border border-zinc-100 rounded-xl p-4">
+                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider col-span-full mb-1">
+                    Reporter Contact Info
+                  </p>
+                  {issue.phone && (
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-500 mb-0.5">📞 Phone Number</label>
+                      <p className="text-sm font-semibold text-zinc-800">{issue.phone}</p>
+                    </div>
+                  )}
+                  {issue.address && (
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-500 mb-0.5">📍 Problem Location</label>
+                      <p className="text-sm font-semibold text-zinc-800">{issue.address}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Display Image Attachment or Uploader depending on edit rights */}
+              <div>
+                <label className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                  Image Attachment
+                </label>
+                {canEditTitleDescImage ? (
+                  imageUrl ? (
+                    <div className="relative border border-zinc-200 rounded-lg p-2 max-w-xs bg-zinc-50 flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded overflow-hidden">
+                        <Image src={imageUrl} alt="Attachment Preview" fill className="object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-zinc-700 truncate">Image uploaded</p>
+                        <button
+                          type="button"
+                          onClick={() => setImageUrl(null)}
+                          className="text-[10px] font-bold text-red-600 hover:underline flex items-center gap-1 mt-1 cursor-pointer border-none bg-transparent"
+                        >
+                          <FaTimes /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center border border-dashed border-zinc-200 hover:border-brand-green rounded-xl p-6 cursor-pointer bg-zinc-50/50 hover:bg-green-50/10 transition-all text-zinc-500">
+                      <FaUpload className="text-zinc-400 mb-2" size={18} />
+                      <span className="text-xs font-semibold">
+                        {uploading ? 'Uploading image...' : 'Click to upload screenshot'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploading}
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )
+                ) : imageUrl ? (
                   <div className="relative w-full max-w-md h-64 border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50">
-                    <Image
-                      src={imageUrl}
-                      alt="Incident Screenshot"
-                      fill
-                      className="object-contain"
-                    />
+                    <Image src={imageUrl} alt="Incident Screenshot" fill className="object-contain" />
                   </div>
                 ) : (
                   <div className="text-sm text-zinc-400 italic">No screenshot attached to this incident.</div>
-                )
-              )}
-            </div>
-
-            {/* Hide Submit button if user has absolutely no edit permissions */}
-            {(canEditTitleDescImage || canEditStatus || canEditPriority) && (
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-zinc-100">
-                <Link href="/">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-zinc-200 hover:bg-zinc-50"
-                  >
-                    Cancel
-                  </Button>
-                </Link>
-                <Button
-                  type="submit"
-                  disabled={saving || uploading}
-                  className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold transition-colors flex items-center space-x-1.5 shadow-sm cursor-pointer"
-                >
-                  <FaSave size={13} />
-                  <span>{saving ? 'Saving...' : 'Save Changes'}</span>
-                </Button>
+                )}
               </div>
-            )}
-          </form>
+
+              {(canEditTitleDescImage || canEditStatus || canEditPriority) && (
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                  <Link href={userRole === 'ADMIN' && mode === 'edit' ? "/issues" : "/"}>
+                    <Button type="button" variant="outline" className="border-zinc-200 hover:bg-zinc-50 h-9 px-3 text-xs">
+                      Cancel
+                    </Button>
+                  </Link>
+                  <Button
+                    type="submit"
+                    disabled={updateMutation.isPending || uploading}
+                    className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold transition-colors flex items-center space-x-1.5 shadow-sm cursor-pointer border-none h-9 px-3 text-xs"
+                  >
+                    <FaSave size={13} />
+                    <span>{updateMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
+                  </Button>
+                </div>
+              )}
+            </form>
+          )}
         </CardContent>
       </Card>
 
@@ -556,7 +627,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : (
             <ol className="relative border-l border-zinc-200 ml-3 space-y-0">
-              {logs.map((log, idx) => (
+              {logs.map((log) => (
                 <li key={log.id} className="mb-6 ml-6">
                   <span className="absolute flex items-center justify-center w-6 h-6 bg-white border-2 border-zinc-200 rounded-full -left-3">
                     <span className="w-2 h-2 rounded-full bg-brand-green block" />
@@ -575,8 +646,10 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                     </Badge>
                     <span className="text-xs text-zinc-400 font-medium ml-auto">
                       {new Date(log.createdAt).toLocaleString('en-US', {
-                        month: 'short', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
                       })}
                     </span>
                   </div>
@@ -588,32 +661,63 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         </CardContent>
       </Card>
 
-      {/* ── CUSTOM DELETE CONFIRMATION MODAL ── */}
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
-          <Card className="max-w-md w-full border border-zinc-100 shadow-xl rounded-2xl bg-white overflow-hidden p-6 mx-4 animate-in zoom-in-95 duration-150">
-            <h3 className="text-lg font-bold text-zinc-950">Delete Incident Report</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+          <Card className="max-w-md w-full border border-zinc-100 shadow-xl rounded-2xl bg-white overflow-hidden p-6 mx-4">
+            <h3 className="text-lg font-bold text-zinc-950">Delete Incident</h3>
             <p className="text-zinc-500 text-sm mt-2">
-              Are you sure you want to delete this incident report? This cannot be undone.
+              Are you sure you want to delete this incident ticket? This cannot be undone.
             </p>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-zinc-200 hover:bg-zinc-50 cursor-pointer"
-                disabled={deleting}
-                onClick={() => setShowDeleteModal(false)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </Button>
               <Button
                 variant="destructive"
                 size="sm"
-                className="bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
-                disabled={deleting}
-                onClick={confirmDelete}
+                className="bg-rose-600 text-white cursor-pointer"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  deleteMutation.mutate()
+                  setShowDeleteModal(false)
+                }}
               >
-                {deleting ? 'Deleting...' : 'Delete'}
+                Delete
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
+          <Card className="max-w-md w-full border border-zinc-100 shadow-xl rounded-2xl bg-white overflow-hidden p-6 mx-4 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-bold text-zinc-950">Rejection Reason</h3>
+            <p className="text-xs text-zinc-400">Please provide a brief description of why this ticket is being rejected.</p>
+            <Textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g. Invalid reports, duplicates, or not an IT issue..."
+              rows={4}
+              required
+              className="w-full focus-visible:ring-brand-green"
+            />
+            <div className="flex items-center justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => {
+                setShowRejectModal(false)
+                setStatus(issue.status) // Revert state select
+              }}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+                disabled={updateMutation.isPending}
+                onClick={handleRejectConfirm}
+              >
+                {updateMutation.isPending ? 'Rejecting...' : 'Reject Incident'}
               </Button>
             </div>
           </Card>
