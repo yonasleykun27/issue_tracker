@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -9,7 +9,44 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
-import { FaEye, FaEyeSlash } from 'react-icons/fa'
+import { FaEye, FaEyeSlash, FaEnvelope, FaCheck, FaTimes } from 'react-icons/fa'
+import { validatePassword } from '@/app/lib/validatePassword'
+
+function PasswordStrengthIndicator({ password }: { password: string }) {
+  if (!password) return null
+  const v = validatePassword(password)
+  const score = [v.minLength, v.hasUppercase, v.hasLowercase, v.hasNumber, v.hasSymbol].filter(Boolean).length
+  const strengthLabel = score <= 1 ? 'Very Weak' : score === 2 ? 'Weak' : score === 3 ? 'Fair' : score === 4 ? 'Strong' : 'Very Strong'
+  const strengthColor = score <= 1 ? 'bg-red-500' : score === 2 ? 'bg-orange-500' : score === 3 ? 'bg-yellow-500' : score === 4 ? 'bg-blue-500' : 'bg-brand-green'
+  const textColor = score <= 1 ? 'text-red-600' : score === 2 ? 'text-orange-600' : score === 3 ? 'text-yellow-600' : score === 4 ? 'text-blue-600' : 'text-brand-green'
+  const rules = [
+    { label: 'At least 8 characters', met: v.minLength },
+    { label: 'Uppercase letter (A-Z)', met: v.hasUppercase },
+    { label: 'Lowercase letter (a-z)', met: v.hasLowercase },
+    { label: 'Number (0-9)', met: v.hasNumber },
+    { label: 'Symbol (!@#$%...)', met: v.hasSymbol },
+  ]
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 flex-1">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${i <= score ? strengthColor : 'bg-zinc-200'}`} />
+          ))}
+        </div>
+        <span className={`text-[11px] font-bold whitespace-nowrap ${textColor}`}>{strengthLabel}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        {rules.map(rule => (
+          <div key={rule.label} className="flex items-center gap-1">
+            {rule.met ? <FaCheck size={8} className="text-brand-green flex-shrink-0" /> : <FaTimes size={8} className="text-zinc-400 flex-shrink-0" />}
+            <span className={`text-[10px] font-medium ${rule.met ? 'text-zinc-700' : 'text-zinc-400'}`}>{rule.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -20,7 +57,52 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [activationCode, setActivationCode] = useState('')
+  
+  // OTP States
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+
   const [loading, setLoading] = useState(false)
+
+  // OTP Cooldown Countdown Timer
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [cooldown])
+
+  const handleSendOtp = async () => {
+    if (!email) {
+      toast.error('Please enter your email address first')
+      return
+    }
+
+    setSendingOtp(true)
+    try {
+      const response = await fetch('/api/register/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+      setSendingOtp(false)
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to send verification code')
+      } else {
+        toast.success('Verification code sent to your email!')
+        setOtpSent(true)
+        setCooldown(60) // 1 minute cooldown
+      }
+    } catch {
+      setSendingOtp(false)
+      toast.error('Failed to send verification code')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,13 +112,29 @@ export default function SignUpPage() {
       return
     }
 
+    const complexity = validatePassword(password)
+    if (!complexity.valid) {
+      toast.error('Password does not meet complexity requirements. Check the checklist below.')
+      return
+    }
+
+    if (!otpSent) {
+      toast.error('Please request and enter the verification code sent to your email')
+      return
+    }
+
+    if (!otp) {
+      toast.error('Please enter the verification code')
+      return
+    }
+
     setLoading(true)
 
     try {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, activationCode })
+        body: JSON.stringify({ name, email, password, activationCode, otp })
       })
 
       const data = await response.json()
@@ -135,16 +233,43 @@ export default function SignUpPage() {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-zinc-700">Email Address</label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email address"
-                  className="mt-1 focus-visible:ring-brand-green"
-                />
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="focus-visible:ring-brand-green"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={sendingOtp || cooldown > 0 || !email}
+                    className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold text-xs whitespace-nowrap cursor-pointer px-4 flex items-center gap-1.5"
+                  >
+                    <FaEnvelope size={11} />
+                    {cooldown > 0 ? `${cooldown}s` : sendingOtp ? 'Sending...' : 'Send Code'}
+                  </Button>
+                </div>
               </div>
+
+              {otpSent && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label htmlFor="otp" className="block text-sm font-semibold text-zinc-700">Verification Code</label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    required
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="Enter the 6-digit code sent to your email"
+                    className="mt-1 focus-visible:ring-brand-green font-mono tracking-widest text-center font-bold text-lg"
+                    maxLength={6}
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -167,6 +292,7 @@ export default function SignUpPage() {
                       {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
                     </button>
                   </div>
+                  <PasswordStrengthIndicator password={password} />
                 </div>
 
                 <div>
@@ -212,8 +338,8 @@ export default function SignUpPage() {
 
             <Button
               type="submit"
-              disabled={loading}
-              className="w-full bg-brand-green hover:bg-brand-dark-green text-white font-semibold shadow-sm transition-colors py-2.5 cursor-pointer mt-2"
+              disabled={loading || !otpSent}
+              className="w-full bg-brand-green hover:bg-brand-dark-green text-white font-semibold shadow-sm transition-colors py-2.5 cursor-pointer mt-2 disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>

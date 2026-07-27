@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/app/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { validatePassword } from '@/app/lib/validatePassword'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, email, password, activationCode } = body
+    const { name, email, password, activationCode, otp } = body
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Missing name, email, or password' }, { status: 400 })
+    }
+
+    if (!otp) {
+      return NextResponse.json({ error: 'Email verification code (OTP) is required' }, { status: 400 })
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -17,6 +22,26 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 400 })
+    }
+
+    // Verify registration OTP code
+    const otpRecord = await prisma.otpCode.findUnique({
+      where: { email }
+    })
+
+    if (!otpRecord || otpRecord.code !== otp || otpRecord.expiresAt < new Date()) {
+      return NextResponse.json({ error: 'Invalid or expired verification code. Please request a new one.' }, { status: 400 })
+    }
+
+    // Clean up OTP record
+    await prisma.otpCode.delete({
+      where: { email }
+    })
+
+    // Validate password complexity
+    const complexity = validatePassword(password)
+    if (!complexity.valid) {
+      return NextResponse.json({ error: 'Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one symbol.' }, { status: 400 })
     }
 
     const passwordHash = await bcrypt.hash(password, 10)
