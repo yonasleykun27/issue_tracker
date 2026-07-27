@@ -7,7 +7,29 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token && token.status !== 'BANNED'  // block if not logged in or banned
+      authorized({ token, req }) {
+        const { pathname } = req.nextUrl
+
+        // ── Public routes — accessible WITHOUT login ──
+        const publicPaths = [
+          '/auth/signin',
+          '/auth/signup',
+          '/auth/forgot-password',
+          '/auth/reset-password',
+        ]
+
+        const isPublic = publicPaths.some(
+          (p) => pathname === p || pathname.startsWith(p + '?')
+        )
+
+        if (isPublic) return true
+
+        // ── Root "/" — always show landing page, no redirect ──
+        if (pathname === '/') return true
+
+        // ── All other routes require a valid session ──
+        return !!token && token.status !== 'BANNED'
+      }
     }
   }
 )
@@ -15,7 +37,12 @@ export default withAuth(
 // Protect these routes — require login
 export const config = {
   matcher: [
-    '/',               // dashboard
-    '/issues/:path*',  // all issue pages
+    '/issues/:path*',
+    '/profile/:path*',
+    '/approvals/:path*',
+    '/auth/signin',
+    '/auth/signup',
+    '/auth/forgot-password',
+    '/auth/reset-password',
   ]
 }
