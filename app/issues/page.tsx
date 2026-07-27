@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { truncateHtml, stripHtml } from '@/app/lib/stripHtml'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -186,7 +187,7 @@ export default function IssuesPage() {
               {row.getValue('title')}
             </Link>
             <span className="text-xs text-zinc-400 block mt-0.5 max-w-md truncate">
-              {row.original.description}
+              {truncateHtml(row.original.description, 90)}
             </span>
           </div>
         )
@@ -396,7 +397,8 @@ export default function IssuesPage() {
     const rows = filteredData.map((issue) => [
       issue.id,
       `"${issue.title.replace(/"/g, '""')}"`,
-      `"${issue.description.replace(/"/g, '""')}"`,
+      `"${stripHtml(issue.description).replace(/"/g, '""')}"`,
+
       issue.status,
       issue.priority,
       new Date(issue.createdAt).toLocaleDateString()
