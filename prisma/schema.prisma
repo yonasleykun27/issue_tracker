@@ -21,6 +21,7 @@ model User {
   assignedAdminIssues Issue[] @relation("AssignedAdminIssues")
   issueLogs      IssueLog[]
   warningLogs    WarningHistory[]
+  notifications  Notification[]
 }
 
 enum Role {
@@ -97,5 +98,23 @@ model WarningHistory {
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   reason    String
+  createdAt DateTime @default(now())
+}
+
+model OtpCode {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 }
