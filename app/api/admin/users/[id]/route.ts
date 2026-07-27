@@ -62,6 +62,29 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           reason: statusReason
         }
       })
+      await prisma.notification.create({
+        data: {
+          userId: userId,
+          title: 'Account Warning Issued',
+          message: `An administrator issued a warning to your account: "${statusReason}".`
+        }
+      }).catch(console.error)
+    } else if (status === 'BANNED') {
+      await prisma.notification.create({
+        data: {
+          userId: userId,
+          title: 'Account Suspended (Banned)',
+          message: `Your account status has been set to BANNED due to: "${statusReason || 'Policy violations'}".`
+        }
+      }).catch(console.error)
+    } else if (status && status !== targetUser.status) {
+      await prisma.notification.create({
+        data: {
+          userId: userId,
+          title: 'Account Status Update',
+          message: `Your account status has been updated to ${status.replace('_', ' ')}.`
+        }
+      }).catch(console.error)
     }
 
     const updatedUser = await prisma.user.update({
