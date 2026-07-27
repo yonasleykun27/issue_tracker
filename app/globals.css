@@ -98,12 +98,12 @@ body {
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: oklch(0.22 0.01 240); /* zinc-900: Page background (cool dark gray) */
+  --foreground: oklch(0.85 0.01 240); /* zinc-300: Medium text */
+  --card: oklch(0.28 0.01 240); /* zinc-800: Card background (lighter for elevation) */
+  --card-foreground: oklch(0.96 0.01 240); /* zinc-50: Bright text */
+  --popover: oklch(0.28 0.01 240);
+  --popover-foreground: oklch(0.96 0.01 240);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
@@ -113,21 +113,21 @@ body {
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: oklch(0.35 0.01 240); /* zinc-700: Visible borders */
+  --input: oklch(0.28 0.01 240);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar: oklch(0.15 0.01 240); /* zinc-950: Darker sidebar background */
+  --sidebar-foreground: oklch(0.90 0.01 240);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent: oklch(0.24 0.01 240);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(0.22 0.01 240);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
@@ -142,6 +142,62 @@ body {
     @apply font-sans;
   }
 }
+
+/* 🌗 GLOBAL DARK MODE RULES OVERRIDES FOR HARDCODED ELEMENTS 🌓 */
+.dark body {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+.dark .bg-white {
+  background-color: var(--card) !important;
+}
+
+.dark .text-zinc-950,
+.dark .text-zinc-900,
+.dark .text-zinc-800 {
+  color: var(--card-foreground) !important;
+}
+
+.dark .text-zinc-700,
+.dark .text-zinc-600 {
+  color: var(--foreground) !important;
+}
+
+.dark .border-zinc-100,
+.dark .border-zinc-150,
+.dark .border-zinc-200 {
+  border-color: var(--border) !important;
+}
+
+.dark .bg-zinc-50,
+.dark .bg-zinc-50\/10,
+.dark .bg-zinc-50\/20,
+.dark .bg-zinc-50\/30,
+.dark .bg-zinc-50\/50,
+.dark .bg-zinc-100 {
+  background-color: var(--background) !important;
+}
+
+.dark .hover\:bg-zinc-50\/50:hover,
+.dark .hover\:bg-zinc-50:hover {
+  background-color: oklch(0.32 0.01 240) !important;
+}
+
+/* Sidebar and Header unique color layout rules */
+.dark aside,
+.dark nav {
+  background-color: var(--sidebar) !important;
+}
+
+.dark select,
+.dark input,
+.dark textarea {
+  background-color: var(--input) !important;
+  color: var(--card-foreground) !important;
+  border-color: var(--border) !important;
+}
+
 
 /* Hide Microsoft Edge / IE default password reveal eye icon to prevent duplicate icons */
 input::-ms-reveal,
