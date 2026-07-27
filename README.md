@@ -3,10 +3,14 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.x-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Neon](https://img.shields.io/badge/Neon-PostgreSQL-00E699?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://tele-issue-tracker.vercel.app/)
+[![Cloudinary](https://img.shields.io/badge/Cloudinary-Image%20CDN-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white)](https://cloudinary.com/)
 [![NextAuth](https://img.shields.io/badge/NextAuth.js-Auth-purple?style=for-the-badge)](https://next-auth.js.org/)
 
 A **full-stack, multi-role incident management system** built for Ethio Telecom's internal IT operations. Employees can report network and service incidents, administrators can review and assign them to agents, and agents can track and resolve them — all in a single, secure portal.
+
+### 🌐 Live Demo → [tele-issue-tracker.vercel.app](https://tele-issue-tracker.vercel.app/)
 
 ---
 
@@ -110,8 +114,9 @@ Every user has a `/profile` page accessible from the sidebar:
 | **Framework** | Next.js 16 (App Router) |
 | **Language** | TypeScript 5 |
 | **Styling** | Tailwind CSS 4, shadcn/ui components |
-| **Database** | PostgreSQL via Prisma ORM |
+| **Database** | [Neon](https://neon.tech/) — Serverless PostgreSQL via Prisma ORM |
 | **Auth** | NextAuth.js (credentials provider, bcryptjs) |
+| **Image Storage** | [Cloudinary](https://cloudinary.com/) — 25 GB free CDN storage |
 | **Rich Text** | Tiptap (`@tiptap/react`, StarterKit, Underline) |
 | **Email** | Nodemailer (Gmail SMTP) |
 | **Data Fetching** | TanStack React Query v5 |
@@ -119,6 +124,41 @@ Every user has a `/profile` page accessible from the sidebar:
 | **Charts** | Recharts (admin analytics) |
 | **Icons** | React Icons (Font Awesome), Lucide React |
 | **Notifications** | react-hot-toast |
+| **Deployment** | [Vercel](https://vercel.com/) — Serverless Edge Network |
+
+---
+
+## ☁️ Cloud Infrastructure
+
+```
+┌─────────────────────────────────────────────────┐
+│                  USER BROWSER                   │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────┐
+│           VERCEL (Serverless Hosting)           │
+│     https://tele-issue-tracker.vercel.app       │
+│                                                 │
+│  Next.js App Router  │  API Routes (Edge Fn)    │
+└──────┬───────────────┴──────────┬───────────────┘
+       │                          │
+       ▼                          ▼
+┌─────────────────┐    ┌─────────────────────────┐
+│   NEON DATABASE │    │   CLOUDINARY CDN        │
+│  (PostgreSQL)   │    │   Image Storage         │
+│  Serverless DB  │    │   25 GB Free Tier       │
+│  Auto-scaling   │    │   Global CDN Delivery   │
+└─────────────────┘    └─────────────────────────┘
+```
+
+### Why these services?
+
+| Service | Why chosen |
+|---|---|
+| **Vercel** | Zero-config Next.js deployment, global CDN, auto-deploys from GitHub |
+| **Neon** | Serverless PostgreSQL — scales to zero when idle, perfect for Vercel |
+| **Cloudinary** | 25 GB free image storage, auto-optimization, CDN delivery worldwide |
 
 ---
 
@@ -135,7 +175,7 @@ issue_tracker/
 │   │   ├── issues/                  # CRUD for incidents
 │   │   ├── issues/[id]/approve/     # Auto-assign to agent + notify
 │   │   ├── issues/[id]/logs/        # Fetch activity timeline
-│   │   ├── issues/upload/           # Image file upload handler
+│   │   ├── issues/upload/           # Cloudinary image upload handler
 │   │   ├── notifications/           # Fetch + mark-as-read notifications
 │   │   ├── profile/change-password/ # Authenticated password change
 │   │   ├── register/                # User registration with OTP check
@@ -166,7 +206,8 @@ issue_tracker/
 │   ├── lib/
 │   │   ├── prisma.ts                # Prisma client singleton
 │   │   ├── email.ts                 # Nodemailer email helper
-│   │   └── validatePassword.ts      # Shared password complexity validator
+│   │   ├── validatePassword.ts      # Shared password complexity validator
+│   │   └── stripHtml.ts             # Strip HTML tags for table previews
 │   ├── globals.css                  # Global styles + Tailwind tokens
 │   ├── layout.tsx                   # Root layout with all providers
 │   └── page.tsx                     # Root entry (role-based dashboard router)
@@ -174,7 +215,7 @@ issue_tracker/
 ├── prisma/
 │   └── schema.prisma                # Database schema
 └── public/
-    └── uploads/                     # Uploaded incident screenshots
+    └── uploads/                     # Local dev uploads (Cloudinary used in prod)
 ```
 
 ---
@@ -207,7 +248,7 @@ erDiagram
         String description "HTML from rich text editor"
         Status status "OPEN | IN_PROGRESS | RESOLVED | REJECTED"
         Priority priority "LOW | MEDIUM | HIGH"
-        String imageUrl
+        String imageUrl "Cloudinary CDN URL"
         String phone
         String address
         String rejectionReason
@@ -252,8 +293,8 @@ cd issue_tracker
 ### 2. Configure Environment Variables
 Create a `.env` file in the root directory:
 ```env
-# PostgreSQL connection
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/issue_tracker?schema=public"
+# Neon PostgreSQL (or local PostgreSQL for dev)
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/issue_tracker?sslmode=require"
 
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
@@ -262,18 +303,21 @@ NEXTAUTH_SECRET="your-strong-random-secret"
 # Gmail SMTP (for OTP emails and password reset)
 SMTP_EMAIL="your-gmail@gmail.com"
 SMTP_PASSWORD="your-gmail-app-password"
-```
 
-> **Gmail App Password**: Go to Google Account → Security → 2-Step Verification → App Passwords. Generate a password for "Mail".
+# Cloudinary (image uploads)
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
+```
 
 ### 3. Install Dependencies
 ```bash
 npm install
 ```
 
-### 4. Run Database Migrations
+### 4. Push Database Schema
 ```bash
-npx prisma migrate dev
+npx prisma db push
 npx prisma generate
 ```
 
@@ -285,9 +329,37 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🔑 Registration Activation Codes
+## 🚀 Deployment (Vercel + Neon + Cloudinary)
 
-Users must enter an activation code during registration to be assigned the correct role:
+### Step 1 — Set up Neon Database
+1. Create a free account at [neon.tech](https://neon.tech)
+2. Create a new project → copy the **Connection String**
+3. Run `npx prisma db push` with your Neon URL to create tables
+
+### Step 2 — Set up Cloudinary
+1. Create a free account at [cloudinary.com](https://cloudinary.com)
+2. From your dashboard, copy: **Cloud Name**, **API Key**, **API Secret**
+
+### Step 3 — Deploy to Vercel
+1. Go to [vercel.com](https://vercel.com) → **New Project** → Import `yonasleykun27/issue_tracker`
+2. Add these **Environment Variables** in Vercel:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Neon connection string |
+| `NEXTAUTH_URL` | `https://your-app.vercel.app` |
+| `NEXTAUTH_SECRET` | Any strong random string |
+| `SMTP_EMAIL` | Gmail address |
+| `SMTP_PASSWORD` | Gmail App Password |
+| `CLOUDINARY_CLOUD_NAME` | From Cloudinary dashboard |
+| `CLOUDINARY_API_KEY` | From Cloudinary dashboard |
+| `CLOUDINARY_API_SECRET` | From Cloudinary dashboard |
+
+3. Click **Deploy** → update `NEXTAUTH_URL` with your actual Vercel URL → Redeploy ✅
+
+---
+
+## 🔑 Registration Activation Codes
 
 | Code | Role Granted |
 |---|---|
@@ -295,7 +367,7 @@ Users must enter an activation code during registration to be assigned the corre
 | `TELE_AGENT` | Support Agent |
 | `TELE_EMPLOYEE` | Employee (User) |
 
-> Admins are auto-activated on registration. Agents and Users start as `PENDING` and must be approved by an Admin before they can access the portal.
+> Admins are auto-activated. Agents and Users start as `PENDING` and must be approved by an Admin.
 
 ---
 
@@ -307,19 +379,8 @@ OPEN  ──► IN_PROGRESS ──► RESOLVED
   └──► REJECTED  (Admin only, on unassigned OPEN tickets)
 ```
 
-- **Admin**: Can approve (auto-assigns to agent) or reject unassigned OPEN tickets
-- **Agent**: Can move assigned tickets forward (OPEN → IN_PROGRESS → RESOLVED)
-- **Status cannot move backwards**
 - **Resolved / Rejected** tickets are permanently read-only for all roles
-
----
-
-## 📦 Production Build
-
-```bash
-npm run build
-npm start
-```
+- **Status cannot move backwards**
 
 ---
 
