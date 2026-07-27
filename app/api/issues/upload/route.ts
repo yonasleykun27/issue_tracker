@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
-import { put } from '@vercel/blob'
+import { v2 as cloudinary } from 'cloudinary'
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
 export async function POST(request: Request) {
   try {
@@ -21,18 +27,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'File size must be under 5MB' }, { status: 400 })
     }
 
-    // Generate unique filename
-    const ext = file.name.split('.').pop() || 'jpg'
-    const uniqueName = `incidents/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`
+    // Convert file to base64 for Cloudinary upload
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+    const base64 = `data:${file.type};base64,${buffer.toString('base64')}`
 
-    // Upload to Vercel Blob
-    const blob = await put(uniqueName, file, {
-      access: 'public',
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(base64, {
+      folder: 'ethio-telecom-issues',
+      resource_type: 'image',
+      transformation: [
+        { quality: 'auto', fetch_format: 'auto' } // Auto-optimize quality & format
+      ]
     })
 
-    return NextResponse.json({ url: blob.url })
+    return NextResponse.json({ url: result.secure_url })
   } catch (error) {
-    console.error('Upload error:', error)
+    console.error('Cloudinary upload error:', error)
     return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })
   }
 }
