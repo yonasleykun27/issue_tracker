@@ -1,11 +1,46 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { FaArrowRight, FaTasks, FaUserShield, FaClock } from 'react-icons/fa'
 
 export default function LandingPage() {
   return (
     <div className="flex-1 flex flex-col bg-zinc-50/50 dark:bg-zinc-950 selection:bg-brand-green selection:text-white transition-colors duration-300">
+
+      {/* ── OWN HEADER with logo + Sign In / Register ── */}
+      <header className="border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs h-16 flex items-center px-6 md:px-12 sticky top-0 z-40 transition-colors">
+        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Image
+              src="/Et-logo.png"
+              alt="Ethio Telecom Logo"
+              width={110}
+              height={32}
+              style={{ width: 'auto', height: 'auto' }}
+              className="object-contain"
+              priority
+            />
+            <span className="text-zinc-300 dark:text-zinc-700 font-light border-l pl-3 border-zinc-200 dark:border-zinc-800 text-sm hidden sm:inline">
+              Operations Portal
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Link
+              href="/auth/signin"
+              className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:text-brand-green dark:hover:text-brand-green transition-colors px-3 py-1.5"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="bg-brand-green hover:bg-brand-dark-green text-white px-4 py-2 rounded-xl transition-colors shadow-xs text-xs font-bold cursor-pointer"
+            >
+              Register Account
+            </Link>
+          </div>
+        </div>
+      </header>
 
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex flex-col items-center justify-center py-12 md:py-24 px-6 relative overflow-hidden">
@@ -46,7 +81,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/auth/signup"
-              className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-850 font-bold px-8 py-3.5 rounded-xl transition-all text-sm cursor-pointer"
+              className="w-full sm:w-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 font-bold px-8 py-3.5 rounded-xl transition-all text-sm cursor-pointer"
             >
               Create Account
             </Link>
@@ -94,24 +129,7 @@ export default function LandingPage() {
           </div>
         </div>
       </main>
-
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-6 transition-colors">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center text-zinc-500 dark:text-zinc-400 text-xs gap-4">
-          <div className="flex items-center space-x-2">
-            <span className="h-2 w-2 rounded-full bg-brand-green" />
-            <span className="font-semibold text-zinc-700 dark:text-zinc-300">Ethio Telecom IT Operations</span>
-          </div>
-          <div>© 2026 Ethio Telecom. All rights reserved.</div>
-          <div className="flex space-x-4">
-            <a href="https://www.ethiotelecom.et" target="_blank" rel="noreferrer" className="hover:text-brand-green hover:underline">
-              Official Website
-            </a>
-            <span>•</span>
-            <span className="text-zinc-400 dark:text-zinc-600">Internal Use Only</span>
-          </div>
-        </div>
-      </footer>
+      {/* No footer here — layout.tsx footer handles it for all pages */}
     </div>
   )
 }
