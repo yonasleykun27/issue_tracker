@@ -1,54 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { FaArrowRight, FaTasks, FaUserShield, FaClock } from 'react-icons/fa'
 
 export default function LandingPage() {
   return (
     <div className="flex-1 flex flex-col bg-zinc-50/50 dark:bg-zinc-950 selection:bg-brand-green selection:text-white transition-colors duration-300">
 
-      {/* ── OWN HEADER with logo + Sign In / Register ── */}
-      <header className="border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs h-16 flex items-center px-6 md:px-12 sticky top-0 z-40 transition-colors">
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Image
-              src="/Et-logo.png"
-              alt="Ethio Telecom Logo"
-              width={110}
-              height={32}
-              style={{ width: 'auto', height: 'auto' }}
-              className="object-contain"
-              priority
-            />
-            <span className="text-zinc-300 dark:text-zinc-700 font-light border-l pl-3 border-zinc-200 dark:border-zinc-800 text-sm hidden sm:inline">
-              Operations Portal
-            </span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/auth/signin"
-              className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:text-brand-green dark:hover:text-brand-green transition-colors px-3 py-1.5"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="bg-brand-green hover:bg-brand-dark-green text-white px-4 py-2 rounded-xl transition-colors shadow-xs text-xs font-bold cursor-pointer"
-            >
-              Register Account
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex flex-col items-center justify-center py-12 md:py-24 px-6 relative overflow-hidden">
-        {/* Decorative background shapes */}
         <div className="absolute top-1/4 left-10 w-96 h-96 bg-brand-green/5 dark:bg-brand-green/2 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-1/4 right-10 w-96 h-96 bg-brand-blue/5 dark:bg-brand-blue/2 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-5xl w-full text-center space-y-12 relative z-10">
+
           {/* Tagline */}
           <div className="inline-flex items-center space-x-2 bg-brand-green/10 dark:bg-brand-green/15 text-brand-dark-green px-4 py-1.5 rounded-full text-xs font-bold tracking-wide uppercase border border-brand-green/10">
             <span className="h-2 w-2 rounded-full bg-brand-green animate-pulse" />
@@ -127,9 +92,9 @@ export default function LandingPage() {
               )
             })}
           </div>
+
         </div>
       </main>
-      {/* No footer here — layout.tsx footer handles it for all pages */}
     </div>
   )
 }
