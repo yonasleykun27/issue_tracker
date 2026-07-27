@@ -4,6 +4,8 @@ import AdminDashboard from './components/AdminDashboard'
 import AgentDashboard from './components/AgentDashboard'
 import UserDashboard from './components/UserDashboard'
 import { redirect } from 'next/navigation'
+import LandingPage from './components/LandingPage'
+import PendingSignOutButton from './components/PendingSignOutButton'
 
 interface AuthUser {
   id: string
@@ -17,7 +19,7 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
 
   if (!session || !session.user) {
-    redirect('/auth/signin')
+    return <LandingPage />
   }
 
   const user = session.user as AuthUser
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
           <p className="text-zinc-400 mt-2 text-sm font-medium">
             Once approved, you will be granted access to log incidents and resolve tickets.
           </p>
+          <PendingSignOutButton />
         </div>
       </div>
     )
