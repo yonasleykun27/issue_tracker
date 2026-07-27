@@ -162,7 +162,7 @@ export async function POST(request: Request) {
         issueId: issue.id,
         actorId: userId,
         action: assignedToId
-          ? `Ticket reported and automatically assigned to administrator (Round-Robin)`
+          ? `Ticket reported and automatically assigned to administrator`
           : `Ticket reported`
       }
     }).catch(console.error)

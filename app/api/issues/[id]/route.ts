@@ -80,7 +80,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Issue not found' }, { status: 404 })
     }
 
+    if (existingIssue.status === 'RESOLVED' && userRole === 'ADMIN') {
+      return NextResponse.json({ error: 'Cannot modify a resolved issue' }, { status: 400 })
+    }
+
     const isAssignedToAgent = !!(existingIssue.assignedToId && existingIssue.assignedTo?.role === 'AGENT')
+
+    // Status flow step-back prevention:
+    if (status !== undefined && status !== existingIssue.status) {
+      if (existingIssue.status === 'RESOLVED' || existingIssue.status === 'REJECTED') {
+        return NextResponse.json({ error: 'Cannot change status of a resolved or rejected issue' }, { status: 400 })
+      }
+      if (existingIssue.status === 'IN_PROGRESS' && status !== 'RESOLVED') {
+        return NextResponse.json({ error: 'In-progress tickets can only be transitioned to RESOLVED' }, { status: 400 })
+      }
+      if (existingIssue.status === 'OPEN' && status !== 'IN_PROGRESS' && status !== 'REJECTED') {
+        return NextResponse.json({ error: 'Open tickets can only transition to IN_PROGRESS or REJECTED' }, { status: 400 })
+      }
+    }
 
     // Role restrictions:
     if (userRole === 'USER') {
@@ -108,8 +125,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (existingIssue.assignedToId !== userId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
-      if (title !== undefined || description !== undefined || imageUrl !== undefined || assignedToId !== undefined) {
-        return NextResponse.json({ error: 'Agents can only modify status and priority of their assigned tickets' }, { status: 400 })
+      if (title !== undefined || description !== undefined || imageUrl !== undefined || assignedToId !== undefined || priority !== undefined) {
+        return NextResponse.json({ error: 'Agents can only modify status of their assigned tickets' }, { status: 400 })
+      }
+      if (status !== undefined && status !== 'IN_PROGRESS' && status !== 'RESOLVED') {
+        return NextResponse.json({ error: 'Agents can only transition status to IN_PROGRESS or RESOLVED' }, { status: 400 })
+      }
+    } else if (userRole === 'ADMIN') {
+      if (status !== undefined && status !== existingIssue.status && status !== 'REJECTED') {
+        return NextResponse.json({ error: 'Administrators cannot change ticket status' }, { status: 400 })
       }
     }
 
@@ -125,7 +149,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason
     } else if (userRole === 'AGENT') {
       if (status !== undefined) updateData.status = status
-      if (priority !== undefined) updateData.priority = priority
     } else {
       // USER role — can always update priority on their own tickets
       if (priority !== undefined) updateData.priority = priority
@@ -209,6 +232,31 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }).catch(console.error)
     }
 
+    // Create persistent database notification alerts
+    if (updateData.assignedToId && updateData.assignedToId !== existingIssue.assignedToId) {
+      await prisma.notification.create({
+        data: {
+          userId: updateData.assignedToId,
+          title: 'New Ticket Assigned',
+          message: `Ticket TKT-${String(updatedIssue.id).padStart(4, '0')} has been assigned to you.`
+        }
+      }).catch(console.error)
+    }
+
+    if (newStatus && newStatus !== existingIssue.status) {
+      const msg = newStatus === 'REJECTED'
+        ? `Your ticket TKT-${String(updatedIssue.id).padStart(4, '0')} was rejected by the administrator: "${updateData.rejectionReason || 'No reason specified'}".`
+        : `Your ticket TKT-${String(updatedIssue.id).padStart(4, '0')} status has been updated to ${newStatus.replace('_', ' ')}.`
+        
+      await prisma.notification.create({
+        data: {
+          userId: existingIssue.reportedById,
+          title: newStatus === 'REJECTED' ? 'Ticket Rejected' : 'Ticket Status Updated',
+          message: msg
+        }
+      }).catch(console.error)
+    }
+
     return NextResponse.json(updatedIssue)
   } catch (error) {
     console.error(error)
@@ -240,9 +288,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Issue not found' }, { status: 404 })
     }
 
-    // When report is assigned to an AGENT, deleting is forbidden
+    // When report is assigned to an AGENT, deleting is forbidden (except for administrators)
     const isAssigned = !!(existingIssue.assignedToId && existingIssue.assignedTo?.role === 'AGENT')
-    if (isAssigned) {
+    if (isAssigned && userRole !== 'ADMIN') {
       return NextResponse.json({ error: 'Deleting assigned reports is forbidden' }, { status: 400 })
     }
 
