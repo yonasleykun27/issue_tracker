@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useSession } from 'next-auth/react'
 import { FaUpload, FaTimes, FaPhoneAlt, FaMapMarkerAlt } from 'react-icons/fa'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
+
+const RichTextEditor = dynamic(() => import('@/app/components/RichTextEditor'), { ssr: false })
 
 interface ExtendedUser {
   id?: string
@@ -33,13 +34,19 @@ export default function NewIssuePage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
 
-  // Redirect non-employees away from this page
+  // Redirect non-employees and pending approval accounts away from this page
+  const userStatus = (session?.user as any)?.status
   useEffect(() => {
-    if (status === 'authenticated' && userRole !== 'USER') {
-      toast.error('Only employees can report issues.')
-      router.replace('/')
+    if (status === 'authenticated') {
+      if (userStatus === 'PENDING') {
+        toast.error('Your registration is pending administrator approval.')
+        router.replace('/')
+      } else if (userRole !== 'USER') {
+        toast.error('Only employees can report issues.')
+        router.replace('/')
+      }
     }
-  }, [status, userRole, router])
+  }, [status, userRole, userStatus, router])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -201,13 +208,9 @@ export default function NewIssuePage() {
               <label htmlFor="description" className="block text-sm font-semibold text-zinc-700 mb-1.5">
                 Full Description <span className="text-red-500">*</span>
               </label>
-              <Textarea
-                id="description"
-                rows={5}
-                required
+              <RichTextEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="focus-visible:ring-brand-green"
+                onChange={setDescription}
                 placeholder="Describe the problem in detail — when it started, what services are affected, what you've already tried..."
               />
             </div>
