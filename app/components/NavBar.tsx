@@ -99,8 +99,26 @@ export default function NavBar() {
           {theme === 'dark' ? <FaSun size={16} /> : <FaMoon size={16} />}
         </button>
 
+        {status === 'unauthenticated' && (
+          <>
+            <Link
+              href="/auth/signin"
+              className="text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:text-brand-green dark:hover:text-brand-green transition-colors px-3 py-1.5"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="bg-brand-green hover:bg-brand-dark-green text-white px-4 py-2 rounded-xl transition-colors shadow-xs text-xs font-bold cursor-pointer"
+            >
+              Register Account
+            </Link>
+          </>
+        )}
+
         {status === 'authenticated' && (
           <>
+
             {/* Notifications Bell Dropdown */}
             <div className="relative">
               <button
