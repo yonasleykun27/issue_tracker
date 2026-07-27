@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { put } from '@vercel/blob'
 
 export async function POST(request: Request) {
   try {
@@ -11,28 +10,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
-    // Ensure uploads directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-    try {
-      await mkdir(uploadDir, { recursive: true })
-    } catch (e) {
-      // directory already exists or error
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Only image files are allowed (PNG, JPG, WEBP, AVIF)' }, { status: 400 })
     }
 
-    // Save with unique name to prevent collisions
-    const fileExtension = path.extname(file.name)
-    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}${fileExtension}`
-    const filePath = path.join(uploadDir, uniqueFileName)
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File size must be under 5MB' }, { status: 400 })
+    }
 
-    await writeFile(filePath, buffer)
-    const fileUrl = `/uploads/${uniqueFileName}`
+    // Generate unique filename
+    const ext = file.name.split('.').pop() || 'jpg'
+    const uniqueName = `incidents/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`
 
-    return NextResponse.json({ url: fileUrl })
+    // Upload to Vercel Blob
+    const blob = await put(uniqueName, file, {
+      access: 'public',
+    })
+
+    return NextResponse.json({ url: blob.url })
   } catch (error) {
-    console.error(error)
+    console.error('Upload error:', error)
     return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })
   }
 }
