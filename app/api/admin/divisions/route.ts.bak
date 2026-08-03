@@ -1,0 +1,59 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import prisma from '@/app/lib/prisma'
+
+// GET — list all divisions
+export async function GET() {
+  try {
+    const divisions = await prisma.division.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { issues: true } } }
+    })
+    return NextResponse.json(divisions)
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 })
+  }
+}
+
+// POST — create a division (admin only)
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session || (session.user as any)?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const { name, key, description, deadline } = await req.json()
+    if (!name?.trim()) {
+      return NextResponse.json({ error: 'Project name is required' }, { status: 400 })
+    }
+    if (!key?.trim()) {
+      return NextResponse.json({ error: 'Project key is required' }, { status: 400 })
+    }
+
+    const cleanKey = key.trim().toUpperCase()
+    if (!/^[A-Z0-9]{2,6}$/.test(cleanKey)) {
+      return NextResponse.json({ error: 'Project key must be 2 to 6 alphanumeric characters (e.g. HRM)' }, { status: 400 })
+    }
+
+    const division = await prisma.division.create({
+      data: {
+        name: name.trim(),
+        key: cleanKey,
+        description: description?.trim() || null,
+        deadline: deadline ? new Date(deadline) : null
+      }
+    })
+    return NextResponse.json(division, { status: 201 })
+  } catch (e: any) {
+    if (e.code === 'P2002') {
+      const target = e.meta?.target || []
+      if (target.includes('key')) {
+        return NextResponse.json({ error: 'A project with this key already exists' }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'A project with this name already exists' }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
+  }
+}

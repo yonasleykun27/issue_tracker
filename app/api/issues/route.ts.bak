@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const userId = parseInt((session.user as ExtendedUser).id)
     const userRole = (session.user as ExtendedUser).role
 
-    // Admins can pass ?scope=all to fetch all issues (for round-robin calculation)
+    // Admins can pass ?scope=all to fetch all issues
     const { searchParams } = new URL(request.url)
     const scope = searchParams.get('scope')
 
@@ -30,18 +30,17 @@ export async function GET(request: Request) {
       issues = await prisma.issue.findMany({
         where: { reportedById: userId },
         orderBy: { createdAt: 'desc' },
-        include: { assignedTo: true, reportedBy: true }
+        include: { assignedTo: true, reportedBy: true, projectDivision: true }
       })
     } else if (userRole === 'ADMIN') {
       if (scope === 'all') {
-        // Admin fetching all issues for round-robin calculation
+        // Admin fetching all issues
         issues = await prisma.issue.findMany({
           orderBy: { createdAt: 'desc' },
-          include: { assignedTo: true, reportedBy: true }
+          include: { assignedTo: true, reportedBy: true, projectDivision: true }
         })
       } else {
         // Admins default: see issues originally assigned to them (via round-robin)
-        // Fallback to assignedToId if assignedAdminId is not yet set
         issues = await prisma.issue.findMany({
           where: {
             OR: [
@@ -53,7 +52,7 @@ export async function GET(request: Request) {
             ]
           },
           orderBy: { createdAt: 'desc' },
-          include: { assignedTo: true, reportedBy: true }
+          include: { assignedTo: true, reportedBy: true, projectDivision: true }
         })
       }
     } else {
@@ -61,7 +60,7 @@ export async function GET(request: Request) {
       issues = await prisma.issue.findMany({
         where: { assignedToId: userId },
         orderBy: { createdAt: 'desc' },
-        include: { assignedTo: true, reportedBy: true }
+        include: { assignedTo: true, reportedBy: true, projectDivision: true }
       })
     }
 
@@ -80,64 +79,68 @@ export async function POST(request: Request) {
     }
 
     const userRole = (session.user as ExtendedUser).role
+    const userId = parseInt((session.user as ExtendedUser).id)
 
-    // Only standard employees (USER) can report issues
-    if (userRole !== 'USER') {
-      return NextResponse.json({ error: 'Only employees can report issues' }, { status: 403 })
+    // Standard employees (USER) and Admins can create tasks/issues
+    if (userRole !== 'USER' && userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Only employees and administrators can create tasks' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { title, description, priority, imageUrl, phone, address } = body
+    const { title, description, priority, imageUrl, phone, address, projectDivisionId } = body
 
     if (!title || !description) {
       return NextResponse.json({ error: 'Title and description are required' }, { status: 400 })
     }
-    if (!phone) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })
-    }
-    if (!address) {
-      return NextResponse.json({ error: 'Problem address is required' }, { status: 400 })
-    }
 
-    const userId = parseInt((session.user as ExtendedUser).id)
+    let finalAssignedToId: number | null = null
+    let finalAssignedAdminId: number | null = null
 
-    // Round-Robin Assignment for active Admins (excluding ON_LEAVE, PENDING, BANNED)
-    const activeAdmins = await prisma.user.findMany({
-      where: {
-        role: 'ADMIN',
-        status: 'ACTIVE'
-      },
-      orderBy: {
-        id: 'asc'
-      }
-    })
-
-    let assignedToId: number | null = null
-    if (activeAdmins.length === 1) {
-      assignedToId = activeAdmins[0].id
-    } else if (activeAdmins.length > 1) {
-      // Find the last issue created that was assigned to one of the active admins
-      const lastAssignedIssue = await prisma.issue.findFirst({
+    if (userRole === 'ADMIN') {
+      finalAssignedAdminId = userId
+      finalAssignedToId = body.assignedToId ? parseInt(body.assignedToId) : userId
+    } else {
+      // Round-Robin Assignment for active Admins (excluding ON_LEAVE, PENDING, BANNED)
+      const activeAdmins = await prisma.user.findMany({
         where: {
-          assignedToId: {
-            in: activeAdmins.map(a => a.id)
-          }
+          role: 'ADMIN',
+          status: 'ACTIVE'
         },
         orderBy: {
-          id: 'desc'
+          id: 'asc'
         }
       })
 
-      if (lastAssignedIssue && lastAssignedIssue.assignedToId) {
-        const lastIndex = activeAdmins.findIndex(a => a.id === lastAssignedIssue.assignedToId)
-        if (lastIndex !== -1) {
-          const nextIndex = (lastIndex + 1) % activeAdmins.length
-          assignedToId = activeAdmins[nextIndex].id
+      if (activeAdmins.length === 1) {
+        finalAssignedToId = activeAdmins[0].id
+        finalAssignedAdminId = activeAdmins[0].id
+      } else if (activeAdmins.length > 1) {
+        // Find the last issue created that was assigned to one of the active admins
+        const lastAssignedIssue = await prisma.issue.findFirst({
+          where: {
+            assignedToId: {
+              in: activeAdmins.map(a => a.id)
+            }
+          },
+          orderBy: {
+            id: 'desc'
+          }
+        })
+
+        if (lastAssignedIssue && lastAssignedIssue.assignedToId) {
+          const lastIndex = activeAdmins.findIndex(a => a.id === lastAssignedIssue.assignedToId)
+          if (lastIndex !== -1) {
+            const nextIndex = (lastIndex + 1) % activeAdmins.length
+            finalAssignedToId = activeAdmins[nextIndex].id
+            finalAssignedAdminId = activeAdmins[nextIndex].id
+          } else {
+            finalAssignedToId = activeAdmins[0].id
+            finalAssignedAdminId = activeAdmins[0].id
+          }
         } else {
-          assignedToId = activeAdmins[0].id
+          finalAssignedToId = activeAdmins[0].id
+          finalAssignedAdminId = activeAdmins[0].id
         }
-      } else {
-        assignedToId = activeAdmins[0].id
       }
     }
 
@@ -150,19 +153,23 @@ export async function POST(request: Request) {
         imageUrl: imageUrl || null,
         phone: phone || null,
         address: address || null,
+        projectDivisionId: projectDivisionId ? parseInt(projectDivisionId) : null,
         reportedById: userId,
-        assignedToId: assignedToId,
-        assignedAdminId: assignedToId
+        assignedToId: finalAssignedToId,
+        assignedAdminId: finalAssignedAdminId
+      },
+      include: {
+        projectDivision: true
       }
     })
 
-    // Log the automatic assignment
+    // Log assignment
     await prisma.issueLog.create({
       data: {
         issueId: issue.id,
         actorId: userId,
-        action: assignedToId
-          ? `Ticket reported and automatically assigned to administrator`
+        action: finalAssignedToId
+          ? `Ticket reported and assigned to ${userRole === 'ADMIN' ? 'agent' : 'administrator'}`
           : `Ticket reported`
       }
     }).catch(console.error)

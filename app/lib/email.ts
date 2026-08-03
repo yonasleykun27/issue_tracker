@@ -107,7 +107,7 @@ export async function sendStatusChangeEmail({
               <!-- Footer -->
               <tr>
                 <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #f4f4f5;text-align:center;">
-                  <p style="margin:0;color:#a1a1aa;font-size:12px;">© ${new Date().getFullYear()} Ethio Telecom — IT Support Division</p>
+                  <p style="margin:0;color:#a1a1aa;font-size:12px;">© ${new Date().getFullYear()} Ethio Telecom — IT Support</p>
                 </td>
               </tr>
 
@@ -177,7 +177,7 @@ export async function sendOtpEmail({
               <!-- Footer -->
               <tr>
                 <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #f4f4f5;text-align:center;">
-                  <p style="margin:0;color:#a1a1aa;font-size:12px;">© ${new Date().getFullYear()} Ethio Telecom — IT Support Division</p>
+                  <p style="margin:0;color:#a1a1aa;font-size:12px;">© ${new Date().getFullYear()} Ethio Telecom — IT Support</p>
                 </td>
               </tr>
 

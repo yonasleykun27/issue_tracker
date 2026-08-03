@@ -8,8 +8,7 @@ import toast from 'react-hot-toast'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-
-import { FaEye, FaEyeSlash, FaEnvelope, FaCheck, FaTimes } from 'react-icons/fa'
+import { FaEye, FaEyeSlash, FaEnvelope, FaCheck, FaTimes, FaArrowLeft } from 'react-icons/fa'
 import { validatePassword } from '@/app/lib/validatePassword'
 
 function PasswordStrengthIndicator({ password }: { password: string }) {
@@ -30,7 +29,7 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
     <div className="mt-2 space-y-1.5">
       <div className="flex items-center gap-2">
         <div className="flex gap-1 flex-1">
-          {[1,2,3,4,5].map(i => (
+          {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${i <= score ? strengthColor : 'bg-zinc-200'}`} />
           ))}
         </div>
@@ -56,8 +55,7 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [activationCode, setActivationCode] = useState('')
-  
+
   // OTP States
   const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
@@ -66,7 +64,6 @@ export default function SignUpPage() {
 
   const [loading, setLoading] = useState(false)
 
-  // OTP Cooldown Countdown Timer
   useEffect(() => {
     if (cooldown > 0) {
       const timer = setTimeout(() => setCooldown(cooldown - 1), 1000)
@@ -96,7 +93,7 @@ export default function SignUpPage() {
       } else {
         toast.success('Verification code sent to your email!')
         setOtpSent(true)
-        setCooldown(60) // 1 minute cooldown
+        setCooldown(60)
       }
     } catch {
       setSendingOtp(false)
@@ -114,12 +111,12 @@ export default function SignUpPage() {
 
     const complexity = validatePassword(password)
     if (!complexity.valid) {
-      toast.error('Password does not meet complexity requirements. Check the checklist below.')
+      toast.error('Password does not meet complexity requirements')
       return
     }
 
     if (!otpSent) {
-      toast.error('Please request and enter the verification code sent to your email')
+      toast.error('Please verify your email first')
       return
     }
 
@@ -134,7 +131,7 @@ export default function SignUpPage() {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, activationCode, otp })
+        body: JSON.stringify({ name, email, password, otp })
       })
 
       const data = await response.json()
@@ -143,27 +140,23 @@ export default function SignUpPage() {
       if (!response.ok) {
         toast.error(data.error || 'Something went wrong')
       } else {
-        toast.success('Account created! Please sign in.')
+        toast.success('Account created! Awaiting admin approval.')
         router.push('/auth/signin')
       }
-    } catch (error) {
+    } catch {
       setLoading(false)
       toast.error('Failed to create account')
     }
   }
 
   return (
-    <div className="min-h-[calc(100vh-180px)] flex items-center justify-center px-4 py-8 bg-zinc-50/30">
-      <Card className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 border border-zinc-100 shadow-md rounded-2xl bg-white overflow-hidden p-0 min-h-[550px]">
-        {/* Left Side: Brand Panel */}
-        <div className="hidden lg:flex lg:col-span-5 bg-linear-to-br from-brand-green to-brand-blue text-white flex-col justify-between p-8 relative overflow-hidden">
-          {/* Decorative background shapes */}
-          <div className="absolute -top-12 -left-12 w-48 h-48 bg-white/5 rounded-full blur-2xl" />
-          <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-zinc-50/30 dark:bg-zinc-950/30">
+      <Card className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 border border-zinc-100 dark:border-zinc-800 shadow-md rounded-2xl bg-white dark:bg-zinc-900 overflow-hidden p-0 min-h-[550px]">
+        {/* Left Side: Brand Panel (Flat brand green, no gradient) */}
+        <div className="hidden lg:flex lg:col-span-5 bg-brand-green text-white flex-col justify-between p-8 relative overflow-hidden">
           <div className="relative z-10 flex flex-col h-full justify-between gap-8">
-            <div className="flex items-center">
-              <div className="bg-white/95 p-2 rounded-xl shadow-sm inline-block">
+            <div className="flex items-center justify-between">
+              <div className="bg-white p-2 rounded-xl shadow-xs inline-block">
                 <Image
                   src="/Et-logo.png"
                   alt="Ethio Telecom Logo"
@@ -181,7 +174,7 @@ export default function SignUpPage() {
                 Ethio Telecom <br />
                 <span className="text-white/85 font-medium text-2xl">Issue Tracker</span>
               </h2>
-              <p className="text-sm text-white/80 leading-relaxed">
+              <p className="text-sm text-white/80 leading-relaxed font-normal">
                 A secure and centralized portal for managing network operations, incident reporting, and bug tracking across the telecom infrastructure.
               </p>
             </div>
@@ -193,7 +186,16 @@ export default function SignUpPage() {
         </div>
 
         {/* Right Side: Form */}
-        <div className="col-span-1 lg:col-span-7 flex flex-col justify-center p-8 sm:p-12">
+        <div className="col-span-1 lg:col-span-7 flex flex-col justify-center p-8 sm:p-12 relative">
+          {/* Back Link to Landing Page */}
+          <Link
+            href="/"
+            className="absolute top-4 right-4 flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-brand-green transition-colors cursor-pointer"
+          >
+            <FaArrowLeft size={10} />
+            Back to Home
+          </Link>
+
           {/* Logo visible only on mobile/tablet */}
           <div className="lg:hidden flex justify-center mb-6">
             <Image
@@ -208,10 +210,10 @@ export default function SignUpPage() {
           </div>
 
           <div className="space-y-2 mb-6">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">
               Create Account
             </h1>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               Sign up to get access to the issue tracker portal.
             </p>
           </div>
@@ -219,7 +221,7 @@ export default function SignUpPage() {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-3">
               <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-zinc-700">Full Name</label>
+                <label htmlFor="name" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Full Name</label>
                 <Input
                   id="name"
                   type="text"
@@ -227,12 +229,12 @@ export default function SignUpPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
-                  className="mt-1 focus-visible:ring-brand-green"
+                  className="mt-1 focus-visible:ring-brand-green dark:bg-zinc-800 dark:border-zinc-700"
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-zinc-700">Email Address</label>
+                <label htmlFor="email" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Email Address</label>
                 <div className="flex gap-2 mt-1">
                   <Input
                     id="email"
@@ -241,7 +243,7 @@ export default function SignUpPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email address"
-                    className="focus-visible:ring-brand-green"
+                    className="focus-visible:ring-brand-green dark:bg-zinc-800 dark:border-zinc-700"
                   />
                   <Button
                     type="button"
@@ -257,15 +259,15 @@ export default function SignUpPage() {
 
               {otpSent && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label htmlFor="otp" className="block text-sm font-semibold text-zinc-700">Verification Code</label>
+                  <label htmlFor="otp" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Verification Code</label>
                   <Input
                     id="otp"
                     type="text"
                     required
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
-                    placeholder="Enter the 6-digit code sent to your email"
-                    className="mt-1 focus-visible:ring-brand-green font-mono tracking-widest text-center font-bold text-lg"
+                    placeholder="Enter the 6-digit code"
+                    className="mt-1 focus-visible:ring-brand-green font-mono tracking-widest text-center font-bold text-lg dark:bg-zinc-800 dark:border-zinc-700"
                     maxLength={6}
                   />
                 </div>
@@ -273,7 +275,7 @@ export default function SignUpPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-zinc-700">Password</label>
+                  <label htmlFor="password" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Password</label>
                   <div className="relative mt-1">
                     <Input
                       id="password"
@@ -282,7 +284,7 @@ export default function SignUpPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="*****"
-                      className="pr-10 focus-visible:ring-brand-green"
+                      className="pr-10 focus-visible:ring-brand-green dark:bg-zinc-800 dark:border-zinc-700"
                     />
                     <button
                       type="button"
@@ -296,7 +298,7 @@ export default function SignUpPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-zinc-700">Confirm Password</label>
+                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300">Confirm Password</label>
                   <div className="relative mt-1">
                     <Input
                       id="confirmPassword"
@@ -305,7 +307,7 @@ export default function SignUpPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="*****"
-                      className="pr-10 focus-visible:ring-brand-green"
+                      className="pr-10 focus-visible:ring-brand-green dark:bg-zinc-800 dark:border-zinc-700"
                     />
                     <button
                       type="button"
@@ -317,34 +319,17 @@ export default function SignUpPage() {
                   </div>
                 </div>
               </div>
-
-              <div>
-                <div className="flex justify-between items-center">
-                  <label htmlFor="activationCode" className="block text-sm font-semibold text-zinc-700">
-                    Activation Code
-                  </label>
-                  <span className="text-[10px] text-zinc-400">Required for registration</span>
-                </div>
-                <Input
-                  id="activationCode"
-                  type="text"
-                  required
-                  value={activationCode}
-                  onChange={(e) => setActivationCode(e.target.value)}
-                  className="mt-1 focus-visible:ring-brand-green"
-                />
-              </div>
             </div>
 
             <Button
               type="submit"
               disabled={loading || !otpSent}
-              className="w-full bg-brand-green hover:bg-brand-dark-green text-white font-semibold shadow-sm transition-colors py-2.5 cursor-pointer mt-2 disabled:opacity-50"
+              className="w-full bg-brand-green hover:bg-brand-dark-green text-white font-semibold shadow-xs transition-colors py-2.5 cursor-pointer mt-2 disabled:opacity-50"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
 
-            <div className="text-center text-sm text-zinc-500 pt-2">
+            <div className="text-center text-sm text-zinc-500 pt-2 dark:text-zinc-400">
               Already have an account?{' '}
               <Link href="/auth/signin" className="font-semibold text-brand-green hover:underline">
                 Sign in

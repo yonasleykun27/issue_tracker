@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Settings
+  Settings,
+  Folder
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -45,7 +46,8 @@ function SidebarInner({ isCollapsed, setIsCollapsed }: SidebarProps) {
       { label: 'Overview', href: '/', icon: LayoutDashboard },
       { label: 'All Incidents', href: '/issues', icon: Ticket },
       { label: 'Staff Accounts', href: '/?tab=staff', tab: 'staff', icon: Users },
-      { label: 'Approvals', href: '/?tab=approvals', tab: 'approvals', icon: CheckSquare }
+      { label: 'Approvals', href: '/?tab=approvals', tab: 'approvals', icon: CheckSquare },
+      { label: 'Projects', href: '/?tab=divisions', tab: 'divisions', icon: Folder }
     )
   } else if (userRole === 'AGENT') {
     navItems.push(
@@ -148,12 +150,19 @@ function SidebarInner({ isCollapsed, setIsCollapsed }: SidebarProps) {
     <>
       {/* Desktop Sidebar container */}
       <aside
-        className={`hidden md:block h-[calc(100vh-64px)] sticky top-16 transition-all duration-300 z-30 ${
+        className={`hidden md:block fixed top-16 left-0 bottom-0 transition-all duration-300 z-30 ${
           isCollapsed ? 'w-20' : 'w-64'
         }`}
       >
         <SidebarContent />
       </aside>
+
+      {/* Spacer to preserve space for the fixed sidebar */}
+      <div
+        className={`hidden md:block shrink-0 transition-all duration-300 ${
+          isCollapsed ? 'w-20' : 'w-64'
+        }`}
+      />
 
       {/* Mobile Header and Drawer menu */}
       <div className="md:hidden flex items-center justify-between px-6 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 shadow-xs sticky top-0 z-40 transition-colors">
@@ -227,7 +236,10 @@ function SidebarInner({ isCollapsed, setIsCollapsed }: SidebarProps) {
 export default function Sidebar(props: SidebarProps) {
   return (
     <Suspense fallback={
-      <aside className={`hidden md:block h-[calc(100vh-64px)] sticky top-16 bg-white dark:bg-zinc-900 border-r border-zinc-100 dark:border-zinc-800 ${props.isCollapsed ? 'w-20' : 'w-64'}`} />
+      <>
+        <aside className={`hidden md:block fixed top-16 left-0 bottom-0 bg-white dark:bg-zinc-900 border-r border-zinc-100 dark:border-zinc-800 ${props.isCollapsed ? 'w-20' : 'w-64'}`} />
+        <div className={`hidden md:block shrink-0 ${props.isCollapsed ? 'w-20' : 'w-64'}`} />
+      </>
     }>
       <SidebarInner {...props} />
     </Suspense>

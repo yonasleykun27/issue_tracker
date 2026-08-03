@@ -7,9 +7,9 @@
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --color-brand-green: #76bd22;
+  --color-brand-green: #8dc63f;
   --color-brand-blue: #005a9c;
-  --color-brand-dark-green: #5ea31a;
+  --color-brand-dark-green: #7cb037;
   --color-brand-dark-blue: #004578;
 }
 

@@ -1,16 +1,38 @@
 # 📞 Ethio Telecom — Issue Tracker Portal
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.x-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-10.x-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![Neon](https://img.shields.io/badge/Neon-PostgreSQL-00E699?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
-[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://tele-issue-tracker.vercel.app/)
 [![Cloudinary](https://img.shields.io/badge/Cloudinary-Image%20CDN-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white)](https://cloudinary.com/)
 [![NextAuth](https://img.shields.io/badge/NextAuth.js-Auth-purple?style=for-the-badge)](https://next-auth.js.org/)
 
 A **full-stack, multi-role incident management system** built for Ethio Telecom's internal IT operations. Employees can report network and service incidents, administrators can review and assign them to agents, and agents can track and resolve them — all in a single, secure portal.
 
-### 🌐 Live Demo → [tele-issue-tracker.vercel.app](https://tele-issue-tracker.vercel.app/)
+---
+
+## 🏗️ Architecture Overview
+
+The application is structured as a **decoupled monorepo** using a **BFF (Backend-For-Frontend)** architecture:
+
+```
+┌──────────────────────┐        ┌──────────────────────┐        ┌──────────────┐
+│   Browser (Client)   │───────▶│  Next.js (Port 3000) │───────▶│   NestJS     │
+│                      │        │  ├─ NextAuth (auth)  │        │  (Port 4000) │
+│                      │◀───────│  └─ BFF Proxy (/api) │◀───────│  /api/*      │
+└──────────────────────┘        └──────────────────────┘        └──────┬───────┘
+                                                                       │
+                                                                       ▼
+                                                                ┌──────────────┐
+                                                                │  PostgreSQL  │
+                                                                │  (Port 5433) │
+                                                                └──────────────┘
+```
+
+1. **Next.js Frontend (Port 3000)**: Serves the client-side UI and manages authentication sessions using `NextAuth.js`. It exposes a catch-all proxy gateway (`app/api/[...catchall]/route.ts`) that decrypts user sessions and forwards request payloads to the NestJS backend with context headers (`x-user-id`, `x-user-role`, `x-user-status`).
+2. **NestJS Backend (Port 4000)**: A decoupled, standalone API service containing modules, controllers, and services for core business validation, database interaction, audit logs, email dispatch (SMTP), and file storage.
+3. **Database Layer**: Shared PostgreSQL database (using Prisma ORM v7 with `@prisma/adapter-pg` driver adapter for connection pooling).
 
 ---
 
@@ -39,7 +61,7 @@ A **full-stack, multi-role incident management system** built for Ethio Telecom'
   - Editing disabled for resolved tickets (delete only)
 - Filter incidents by: All / Assigned / Unassigned / **Rejected** (separate category)
 - See assigned agent name for each ticket
-- Approve tickets — auto-assigns to a random available agent
+- Approve tickets — auto-assigns to a random available agent (round-robin / balance load)
 - Reject tickets with a mandatory rejection reason
 - Manage staff accounts: approve pending registrations, warn, ban/unban users
 - View full **activity timeline** (audit log) on every ticket
@@ -76,17 +98,6 @@ A **full-stack, multi-role incident management system** built for Ethio Telecom'
 
 ---
 
-## 👤 Profile & Settings
-
-Every user has a `/profile` page accessible from the sidebar:
-- Displays name, email, and role badge
-- **Change Password** form with:
-  - Current password verification
-  - New password with live strength meter
-  - Confirm password with match indicator
-
----
-
 ## 🗂️ Role-Based Access Matrix
 
 | Feature | USER | AGENT | ADMIN |
@@ -107,177 +118,32 @@ Every user has a `/profile` page accessible from the sidebar:
 
 ---
 
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript 5 |
-| **Styling** | Tailwind CSS 4, shadcn/ui components |
-| **Database** | [Neon](https://neon.tech/) — Serverless PostgreSQL via Prisma ORM |
-| **Auth** | NextAuth.js (credentials provider, bcryptjs) |
-| **Image Storage** | [Cloudinary](https://cloudinary.com/) — 25 GB free CDN storage |
-| **Rich Text** | Tiptap (`@tiptap/react`, StarterKit, Underline) |
-| **Email** | Nodemailer (Gmail SMTP) |
-| **Data Fetching** | TanStack React Query v5 |
-| **Tables** | TanStack React Table v8 |
-| **Charts** | Recharts (admin analytics) |
-| **Icons** | React Icons (Font Awesome), Lucide React |
-| **Notifications** | react-hot-toast |
-| **Deployment** | [Vercel](https://vercel.com/) — Serverless Edge Network |
-
----
-
-## ☁️ Cloud Infrastructure
-
-```
-┌─────────────────────────────────────────────────┐
-│                  USER BROWSER                   │
-└──────────────────────┬──────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────┐
-│           VERCEL (Serverless Hosting)           │
-│     https://tele-issue-tracker.vercel.app       │
-│                                                 │
-│  Next.js App Router  │  API Routes (Edge Fn)    │
-└──────┬───────────────┴──────────┬───────────────┘
-       │                          │
-       ▼                          ▼
-┌─────────────────┐    ┌─────────────────────────┐
-│   NEON DATABASE │    │   CLOUDINARY CDN        │
-│  (PostgreSQL)   │    │   Image Storage         │
-│  Serverless DB  │    │   25 GB Free Tier       │
-│  Auto-scaling   │    │   Global CDN Delivery   │
-└─────────────────┘    └─────────────────────────┘
-```
-
-### Why these services?
-
-| Service | Why chosen |
-|---|---|
-| **Vercel** | Zero-config Next.js deployment, global CDN, auto-deploys from GitHub |
-| **Neon** | Serverless PostgreSQL — scales to zero when idle, perfect for Vercel |
-| **Cloudinary** | 25 GB free image storage, auto-optimization, CDN delivery worldwide |
-
----
-
 ## 📂 Project Structure
 
 ```
 issue_tracker/
-├── app/
+├── app/                        # Next.js App Router (Frontend)
 │   ├── api/
-│   │   ├── admin/users/[id]/        # Admin: approve, warn, ban, role update
-│   │   ├── auth/[...nextauth]/      # NextAuth credential provider
-│   │   ├── auth/forgot-password/    # Send reset link email
-│   │   ├── auth/reset-password/     # Verify token and update password
-│   │   ├── issues/                  # CRUD for incidents
-│   │   ├── issues/[id]/approve/     # Auto-assign to agent + notify
-│   │   ├── issues/[id]/logs/        # Fetch activity timeline
-│   │   ├── issues/upload/           # Cloudinary image upload handler
-│   │   ├── notifications/           # Fetch + mark-as-read notifications
-│   │   ├── profile/change-password/ # Authenticated password change
-│   │   ├── register/                # User registration with OTP check
-│   │   ├── register/send-otp/       # Send email OTP for registration
-│   │   └── users/warnings/          # Fetch current user warnings
-│   ├── auth/
-│   │   ├── signin/                  # Login page
-│   │   ├── signup/                  # Registration page with OTP + complexity
-│   │   ├── forgot-password/         # Forgot password page
-│   │   └── reset-password/          # Reset password page
-│   ├── components/
-│   │   ├── AdminDashboard.tsx       # Full admin incident + staff management UI
-│   │   ├── AgentDashboard.tsx       # Agent ticket queue
-│   │   ├── UserDashboard.tsx        # User incident list
-│   │   ├── NavBar.tsx               # Top nav with notifications + warnings
-│   │   ├── Sidebar.tsx              # Collapsible role-based sidebar
-│   │   ├── SidebarLayout.tsx        # Layout wrapper with sidebar
-│   │   ├── RichTextEditor.tsx       # Tiptap WYSIWYG editor component
-│   │   ├── LandingPage.tsx          # Public landing page
-│   │   ├── ThemeProvider.tsx        # Dark/light mode context
-│   │   └── QueryProvider.tsx        # TanStack Query client provider
-│   ├── issues/
-│   │   ├── new/page.tsx             # Report new incident form
-│   │   ├── [id]/page.tsx            # Incident detail + edit page
-│   │   └── page.tsx                 # All incidents table (admin/agent)
-│   ├── profile/
-│   │   └── page.tsx                 # Profile & Settings page
-│   ├── lib/
-│   │   ├── prisma.ts                # Prisma client singleton
-│   │   ├── email.ts                 # Nodemailer email helper
-│   │   ├── validatePassword.ts      # Shared password complexity validator
-│   │   └── stripHtml.ts             # Strip HTML tags for table previews
-│   ├── globals.css                  # Global styles + Tailwind tokens
-│   ├── layout.tsx                   # Root layout with all providers
-│   └── page.tsx                     # Root entry (role-based dashboard router)
-├── components/ui/                   # shadcn/ui primitives (Button, Input, Card…)
+│   │   ├── [...catchall]/      # BFF Gateway proxy to NestJS
+│   │   └── auth/               # NextAuth authentication config
+│   ├── components/             # Reusable Client & Layout components
+│   ├── issues/                 # Issues routing pages
+│   ├── profile/                # Profile setting page
+│   └── globals.css             # Main styling index
+├── backend/                    # NestJS Standalone Application (Backend)
+│   ├── src/
+│   │   ├── auth/               # Custom guards for proxy-injected headers
+│   │   ├── common/             # EmailService, Cloudinary modules
+│   │   ├── divisions/          # Project CRUD & validation controllers
+│   │   ├── issues/             # Ticket reports, assignation, logs controllers
+│   │   ├── notifications/      # Fetch/Update notifications
+│   │   ├── prisma/             # Database connection module
+│   │   └── users/              # OTP validation, admin management
+│   ├── .env                    # Backend environment config
+│   └── main.ts                 # NestJS application bootstrapping
 ├── prisma/
-│   └── schema.prisma                # Database schema
-└── public/
-    └── uploads/                     # Local dev uploads (Cloudinary used in prod)
-```
-
----
-
-## 📊 Database Schema
-
-```mermaid
-erDiagram
-    User ||--o{ Issue : "reports"
-    User ||--o{ Issue : "assignedTo"
-    User ||--o{ IssueLog : "performs action"
-    User ||--o{ Notification : "receives"
-    User ||--o{ WarningHistory : "warning logs"
-    Issue ||--o{ IssueLog : "has logs (cascade delete)"
-
-    User {
-        Int id PK
-        String name
-        String email UK
-        String passwordHash
-        Role role "ADMIN | AGENT | USER"
-        UserStatus status "PENDING | ACTIVE | WARNED | BANNED | ON_LEAVE"
-        Int warningCount
-        String statusReason
-    }
-
-    Issue {
-        Int id PK
-        String title
-        String description "HTML from rich text editor"
-        Status status "OPEN | IN_PROGRESS | RESOLVED | REJECTED"
-        Priority priority "LOW | MEDIUM | HIGH"
-        String imageUrl "Cloudinary CDN URL"
-        String phone
-        String address
-        String rejectionReason
-        DateTime createdAt
-    }
-
-    IssueLog {
-        Int id PK
-        Int issueId FK
-        Int actorId FK
-        String action
-        DateTime createdAt
-    }
-
-    Notification {
-        Int id PK
-        Int userId FK
-        String title
-        String message
-        Boolean isRead
-        DateTime createdAt
-    }
-
-    OtpCode {
-        Int id PK
-        String email UK
-        String code
-        DateTime expiresAt
-    }
+│   └── schema.prisma           # Single source of truth DB Schema
+└── tsconfig.json               # Root TS config (excludes backend/ directories)
 ```
 
 ---
@@ -291,14 +157,23 @@ cd issue_tracker
 ```
 
 ### 2. Configure Environment Variables
+
+#### Frontend Env
 Create a `.env` file in the root directory:
 ```env
-# Neon PostgreSQL (or local PostgreSQL for dev)
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/issue_tracker?sslmode=require"
-
 # NextAuth
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-strong-random-secret"
+
+# PostgreSQL Connection url (NextAuth database access)
+DATABASE_URL="postgresql://admin:adminpass@localhost:5433/issue_tracker?schema=public"
+```
+
+#### Backend Env
+Create a `.env` file inside the `backend` directory:
+```env
+# PostgreSQL Connection url (Primary database access)
+DATABASE_URL="postgresql://admin:adminpass@localhost:5433/issue_tracker?schema=public"
 
 # Gmail SMTP (for OTP emails and password reset)
 SMTP_EMAIL="your-gmail@gmail.com"
@@ -310,52 +185,51 @@ CLOUDINARY_API_KEY="your-api-key"
 CLOUDINARY_API_SECRET="your-api-secret"
 ```
 
-### 3. Install Dependencies
+### 3. Install Dependencies & Generate Database Clients
+Install packages in the root directory and the backend directory:
 ```bash
+# In the root (Next.js)
+npm install
+npx prisma generate
+
+# In the backend directory
+cd backend
 npm install
 ```
 
-### 4. Push Database Schema
-```bash
-npx prisma db push
-npx prisma generate
-```
+### 4. Running the Applications
 
-### 5. Start the Development Server
+Open two terminals:
+
+**Terminal 1 (Backend)**:
+```bash
+cd backend
+npm run start:dev
+```
+Runs the NestJS server on [http://localhost:4000](http://localhost:4000).
+
+**Terminal 2 (Frontend)**:
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000)
+Runs the Next.js server on [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🚀 Deployment (Vercel + Neon + Cloudinary)
+## 🚀 Deployment
 
-### Step 1 — Set up Neon Database
-1. Create a free account at [neon.tech](https://neon.tech)
-2. Create a new project → copy the **Connection String**
-3. Run `npx prisma db push` with your Neon URL to create tables
+### Backend Deployment (NestJS)
+You can deploy the NestJS API server to services like **Railway**, **Render**, **Heroku**, or a **VPS**:
+1. Point your service to the `backend` folder as the root directory.
+2. Build command: `npm run build`
+3. Start command: `node dist/main.js`
+4. Supply environment variables (`DATABASE_URL`, `SMTP_EMAIL`, `SMTP_PASSWORD`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`).
 
-### Step 2 — Set up Cloudinary
-1. Create a free account at [cloudinary.com](https://cloudinary.com)
-2. From your dashboard, copy: **Cloud Name**, **API Key**, **API Secret**
-
-### Step 3 — Deploy to Vercel
-1. Go to [vercel.com](https://vercel.com) → **New Project** → Import `yonasleykun27/issue_tracker`
-2. Add these **Environment Variables** in Vercel:
-
-| Variable | Value |
-|---|---|
-| `DATABASE_URL` | Neon connection string |
-| `NEXTAUTH_URL` | `https://your-app.vercel.app` |
-| `NEXTAUTH_SECRET` | Any strong random string |
-| `SMTP_EMAIL` | Gmail address |
-| `SMTP_PASSWORD` | Gmail App Password |
-| `CLOUDINARY_CLOUD_NAME` | From Cloudinary dashboard |
-| `CLOUDINARY_API_KEY` | From Cloudinary dashboard |
-| `CLOUDINARY_API_SECRET` | From Cloudinary dashboard |
-
-3. Click **Deploy** → update `NEXTAUTH_URL` with your actual Vercel URL → Redeploy ✅
+### Frontend Deployment (Next.js)
+You can deploy the Next.js frontend to **Vercel**:
+1. Set Vercel's root directory to the project root (i.e. `./`).
+2. Add environment variables (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`).
+3. Set the API target environment variable inside Next.js to point to your deployed NestJS API url.
 
 ---
 

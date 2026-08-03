@@ -44,6 +44,12 @@ interface Issue {
     role?: string
   } | null
   assignedToId?: number | null
+  projectDivisionId?: number | null
+  projectDivision?: {
+    id: number
+    name: string
+    key: string
+  } | null
 }
 
 export default function IssuesPage() {
@@ -68,8 +74,17 @@ export default function IssuesPage() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
   const [assignmentFilter, setAssignmentFilter] = useState('ALL')
+  const [divisionFilter, setDivisionFilter] = useState('ALL')
+  const [divisions, setDivisions] = useState<any[]>([])
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/divisions')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setDivisions(data))
+      .catch(console.error)
+  }, [])
 
   // Fetch all issues via React Query
   const { data: issues = [], isLoading } = useQuery<Issue[]>({
@@ -150,9 +165,10 @@ export default function IssuesPage() {
         assignmentFilter === 'UNASSIGNED' ? (!isAssigned && issue.status !== 'REJECTED') :
         assignmentFilter === 'REJECTED' ? issue.status === 'REJECTED' :
         true
-      return matchesStatus && matchesPriority && matchesAssignment
+      const matchesDivision = divisionFilter === 'ALL' || String(issue.projectDivisionId) === divisionFilter
+      return matchesStatus && matchesPriority && matchesAssignment && matchesDivision
     })
-  }, [issues, statusFilter, priorityFilter, assignmentFilter])
+  }, [issues, statusFilter, priorityFilter, assignmentFilter, divisionFilter])
 
   // Columns definition for TanStack Table
   const columns = useMemo<ColumnDef<Issue>[]>(
@@ -169,11 +185,15 @@ export default function IssuesPage() {
             <FaSort className="ml-2 h-3 w-3" />
           </Button>
         ),
-        cell: ({ row }) => (
-          <span className="font-mono font-bold text-zinc-500">
-            TKT-{String(row.getValue('id')).padStart(4, '0')}
-          </span>
-        )
+        cell: ({ row }) => {
+          const issue = row.original
+          const projKey = issue.projectDivision?.key || 'GEN'
+          return (
+            <span className="font-mono font-bold text-zinc-500">
+              {projKey}-{issue.id}
+            </span>
+          )
+        }
       },
       {
         accessorKey: 'title',
@@ -191,6 +211,18 @@ export default function IssuesPage() {
             </span>
           </div>
         )
+      },
+      {
+        accessorKey: 'projectDivision.name',
+        header: 'Project',
+        cell: ({ row }) => {
+          const divName = row.original.projectDivision?.name
+          return (
+            <Badge variant="outline" className="font-semibold text-zinc-650 bg-zinc-50 border border-zinc-150 rounded-full px-2 py-0.5 text-xs">
+              {divName || 'None'}
+            </Badge>
+          )
+        }
       },
       {
         accessorKey: 'status',
@@ -422,7 +454,7 @@ export default function IssuesPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-zinc-950 dark:text-zinc-50 tracking-tight">System Issues</h1>
+          <h1 className="text-2xl font-extrabold text-zinc-950 dark:text-zinc-50 tracking-tight">All Incidents</h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm">View, query, and export logged telecommunication incidents.</p>
         </div>
         <div className="flex items-center space-x-3">
@@ -441,13 +473,13 @@ export default function IssuesPage() {
           >
             <span>📄 Download PDF</span>
           </Button>
-          {userRole === 'USER' && (
+          {(userRole === 'USER' || userRole === 'ADMIN') && (
             <Link href="/issues/new">
               <Button
-                className="bg-brand-green hover:bg-brand-dark-green text-white font-medium flex items-center space-x-1.5 shadow-sm"
+                className="bg-brand-green hover:bg-brand-dark-green text-white font-medium flex items-center space-x-1.5 shadow-sm h-9 cursor-pointer border-none"
               >
                 <FaPlus size={12} />
-                <span>New Issue</span>
+                <span>{userRole === 'ADMIN' ? 'New Task' : 'New Issue'}</span>
               </Button>
             </Link>
           )}
@@ -455,7 +487,7 @@ export default function IssuesPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${userRole === 'ADMIN' ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm no-print`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${userRole === 'ADMIN' ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm no-print`}>
         <div className="relative md:col-span-2">
           <FaSearch className="absolute left-3 top-3 text-zinc-400" size={14} />
           <Input
@@ -491,6 +523,21 @@ export default function IssuesPage() {
             <option value="LOW">Low</option>
             <option value="MEDIUM">Medium</option>
             <option value="HIGH">High</option>
+          </select>
+        </div>
+
+        <div>
+          <select
+            value={divisionFilter}
+            onChange={(e) => setDivisionFilter(e.target.value)}
+            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-850 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green cursor-pointer"
+          >
+            <option value="ALL">All Projects</option>
+            {divisions.map((div) => (
+              <option key={div.id} value={String(div.id)}>
+                {div.name}
+              </option>
+            ))}
           </select>
         </div>
 

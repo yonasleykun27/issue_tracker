@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     const { id } = await params
     const issue = await prisma.issue.findUnique({
       where: { id: parseInt(id) },
-      include: { assignedTo: true, reportedBy: true }
+      include: { assignedTo: true, reportedBy: true, projectDivision: true }
     })
 
     if (!issue) {
@@ -51,6 +51,7 @@ interface UpdateIssueData {
   phone?: string | null
   address?: string | null
   rejectionReason?: string | null
+  projectDivisionId?: number | null
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -62,7 +63,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, status, priority, assignedToId, imageUrl, phone, address, rejectionReason } = body
+    const { title, description, status, priority, assignedToId, imageUrl, phone, address, rejectionReason, projectDivisionId } = body
 
     const user = session.user as CustomUser
     const userId = parseInt(user.id)
@@ -147,6 +148,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (assignedToId !== undefined) updateData.assignedToId = assignedToId ? Number(assignedToId) : null
       if (imageUrl !== undefined) updateData.imageUrl = imageUrl
       if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason
+      if (projectDivisionId !== undefined) updateData.projectDivisionId = projectDivisionId ? Number(projectDivisionId) : null
     } else if (userRole === 'AGENT') {
       if (status !== undefined) updateData.status = status
     } else {
@@ -159,6 +161,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (imageUrl !== undefined) updateData.imageUrl = imageUrl
         if (phone !== undefined) updateData.phone = phone
         if (address !== undefined) updateData.address = address
+        if (projectDivisionId !== undefined) updateData.projectDivisionId = projectDivisionId ? Number(projectDivisionId) : null
       }
     }
 
@@ -210,6 +213,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         issueId: parseInt(id),
         actorId: userId,
         action: updateData.imageUrl ? `Screenshot attachment updated` : `Screenshot attachment removed`
+      })
+    }
+    if (updateData.projectDivisionId !== undefined && updateData.projectDivisionId !== existingIssue.projectDivisionId) {
+      logEntries.push({
+        issueId: parseInt(id),
+        actorId: userId,
+        action: `Project Division updated`
       })
     }
 

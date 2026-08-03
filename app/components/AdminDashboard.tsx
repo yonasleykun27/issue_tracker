@@ -44,9 +44,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import toast from 'react-hot-toast'
+import { stripHtml } from '@/app/lib/stripHtml'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
+import dynamic from 'next/dynamic'
+
+const RichTextEditor = dynamic(() => import('@/app/components/RichTextEditor'), { ssr: false })
 
 interface Issue {
   id: number
@@ -64,6 +68,8 @@ interface Issue {
   }
   assignedToId?: number | null
   assignedTo?: { name: string; role?: string } | null
+  projectDivisionId?: number | null
+  projectDivision?: { name: string; key: string } | null
 }
 
 interface User {
@@ -88,17 +94,7 @@ function AdminDashboardInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const tab = searchParams.get('tab')
-  const activeTab = tab === 'staff' ? 'users' : tab === 'approvals' ? 'approvals' : 'issues'
-
-  const handleTabChange = (newTab: 'issues' | 'users' | 'approvals') => {
-    if (newTab === 'users') {
-      router.push('/?tab=staff')
-    } else if (newTab === 'approvals') {
-      router.push('/?tab=approvals')
-    } else {
-      router.push('/')
-    }
-  }
+  const activeTab = tab === 'staff' ? 'users' : tab === 'approvals' ? 'approvals' : tab === 'divisions' ? 'divisions' : 'issues'
 
   const [viewingIssue, setViewingIssue] = useState<Issue | null>(null)
   
@@ -113,6 +109,22 @@ function AdminDashboardInner() {
   const [banReasonText, setBanReasonText] = useState('')
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null)
   const [rejectUserId, setRejectUserId] = useState<number | null>(null)
+
+  // User approval states
+  const [approvingUserObj, setApprovingUserObj] = useState<User | null>(null)
+  const [selectedRole, setSelectedRole] = useState<'USER' | 'AGENT' | 'ADMIN'>('USER')
+
+  // Division management states
+  const [newDivisionName, setNewDivisionName] = useState('')
+  const [newDivisionKey, setNewDivisionKey] = useState('')
+  const [newDivisionDesc, setNewDivisionDesc] = useState('')
+  const [newDivisionDeadline, setNewDivisionDeadline] = useState('')
+  const [editingDivisionId, setEditingDivisionId] = useState<number | null>(null)
+  const [editingDivisionName, setEditingDivisionName] = useState('')
+  const [editingDivisionKey, setEditingDivisionKey] = useState('')
+  const [editingDivisionDesc, setEditingDivisionDesc] = useState('')
+  const [editingDivisionDeadline, setEditingDivisionDeadline] = useState('')
+  const [deleteDivisionId, setDeleteDivisionId] = useState<number | null>(null)
 
   // TanStack Table states for Incidents Queue
   const [sorting, setSorting] = useState<SortingState>([])
@@ -150,6 +162,72 @@ function AdminDashboardInner() {
   const { data: analyticsData = [], isLoading: loadingAnalytics } = useQuery<AnalyticsItem[]>({
     queryKey: ['admin-analytics'],
     queryFn: () => fetch('/api/admin/analytics').then((res) => (res.ok ? res.json() : []))
+  })
+
+  // 4. Fetch Divisions
+  const { data: divisions = [], isLoading: loadingDivisions } = useQuery<any[]>({
+    queryKey: ['admin-divisions'],
+    queryFn: () =>
+      fetch('/api/admin/divisions').then((res) => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      })
+  })
+
+  const createDivisionMutation = useMutation({
+    mutationFn: ({ name, key, description, deadline }: { name: string; key: string; description: string; deadline: string }) =>
+      fetch('/api/admin/divisions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, key, description, deadline })
+      }).then((res) => {
+        if (!res.ok) return res.json().then((d) => { throw new Error(d.error || 'Failed') })
+        return res.json()
+      }),
+    onSuccess: () => {
+      toast.success('Project created successfully!')
+      setNewDivisionName('')
+      setNewDivisionKey('')
+      setNewDivisionDesc('')
+      setNewDivisionDeadline('')
+      queryClient.invalidateQueries({ queryKey: ['admin-divisions'] })
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to create project')
+  })
+
+  const updateDivisionMutation = useMutation({
+    mutationFn: ({ id, name, key, description, deadline }: { id: number; name: string; key: string; description: string; deadline: string }) =>
+      fetch(`/api/admin/divisions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, key, description, deadline })
+      }).then((res) => {
+        if (!res.ok) return res.json().then((d) => { throw new Error(d.error || 'Failed') })
+        return res.json()
+      }),
+    onSuccess: () => {
+      toast.success('Project updated successfully!')
+      setEditingDivisionId(null)
+      setEditingDivisionName('')
+      setEditingDivisionKey('')
+      setEditingDivisionDesc('')
+      setEditingDivisionDeadline('')
+      queryClient.invalidateQueries({ queryKey: ['admin-divisions'] })
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to update project')
+  })
+
+  const deleteDivisionMutation = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`/api/admin/divisions/${id}`, { method: 'DELETE' }).then((res) => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      }),
+    onSuccess: () => {
+      toast.success('Project deleted successfully!')
+      queryClient.invalidateQueries({ queryKey: ['admin-divisions'] })
+    },
+    onError: () => toast.error('Failed to delete project')
   })
 
   // Mutations
@@ -258,17 +336,17 @@ function AdminDashboardInner() {
   })
 
   const approveRegistrationMutation = useMutation({
-    mutationFn: (userId: number) =>
+    mutationFn: ({ userId, role }: { userId: number; role: 'USER' | 'AGENT' | 'ADMIN' }) =>
       fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ACTIVE' })
+        body: JSON.stringify({ status: 'ACTIVE', role })
       }).then((res) => {
         if (!res.ok) throw new Error()
         return res.json()
       }),
     onSuccess: () => {
-      toast.success('Registration approved successfully!')
+      toast.success('Registration approved and role assigned successfully!')
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
     },
     onError: () => toast.error('Failed to approve registration')
@@ -302,11 +380,15 @@ function AdminDashboardInner() {
             <FaSort className="ml-2 h-3 w-3" />
           </Button>
         ),
-        cell: ({ row }) => (
-          <span className="font-mono font-bold text-zinc-500">
-            TKT-{String(row.getValue('id')).padStart(4, '0')}
-          </span>
-        )
+        cell: ({ row }) => {
+          const issue = row.original
+          const projKey = issue.projectDivision?.key || 'GEN'
+          return (
+            <span className="font-mono font-bold text-zinc-500">
+              {projKey}-{issue.id}
+            </span>
+          )
+        }
       },
       {
         accessorKey: 'title',
@@ -321,6 +403,18 @@ function AdminDashboardInner() {
             )}
           </div>
         )
+      },
+      {
+        accessorKey: 'projectDivision.name',
+        header: 'Project',
+        cell: ({ row }) => {
+          const divName = (row.original as any).projectDivision?.name
+          return (
+            <Badge variant="outline" className="font-semibold rounded-full border-none px-2 py-0.5 text-xs bg-zinc-50 text-zinc-650">
+              {divName || 'None'}
+            </Badge>
+          )
+        }
       },
       {
         accessorKey: 'status',
@@ -605,7 +699,10 @@ function AdminDashboardInner() {
             <div className="text-right space-x-2">
               <Button
                 size="xs"
-                onClick={() => approveRegistrationMutation.mutate(user.id)}
+                onClick={() => {
+                  setApprovingUserObj(user)
+                  setSelectedRole('USER')
+                }}
                 className="bg-brand-green hover:bg-brand-dark-green text-white text-xs font-semibold cursor-pointer"
               >
                 <FaCheck className="mr-1" />Approve
@@ -685,13 +782,13 @@ function AdminDashboardInner() {
 
   return (
     <div className="space-y-8">
-      {/* Welcome Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold text-zinc-950 tracking-tight">IT Management Console</h1>
-        <p className="text-zinc-500 mt-1">System operational metrics, incident queues, and account controls.</p>
-      </div>
-
-
+      {/* Welcome Header - Only shown on main Overview (issues) tab */}
+      {activeTab === 'issues' && (
+        <div>
+          <h1 className="text-3xl font-extrabold text-zinc-950 tracking-tight">IT Management Console</h1>
+          <p className="text-zinc-500 mt-1">System operational metrics, incident queues, and account controls.</p>
+        </div>
+      )}
 
       {/* ── ISSUES TAB ── */}
       {activeTab === 'issues' && (
@@ -1015,6 +1112,207 @@ function AdminDashboardInner() {
         </Card>
       )}
 
+      {/* ── PROJECT DIVISIONS TAB ── */}
+      {activeTab === 'divisions' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Create / Edit Form */}
+          <div className="lg:col-span-4">
+            <Card className="border-zinc-105 shadow-xs rounded-2xl bg-white sticky top-20">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-zinc-950">
+                  {editingDivisionId ? 'Edit Project' : 'New Project'}
+                </CardTitle>
+                <CardDescription className="text-zinc-500">
+                  {editingDivisionId 
+                    ? 'Update the project details.' 
+                    : 'Add a new project to categorize operational issues.'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (editingDivisionId) {
+                      updateDivisionMutation.mutate({
+                        id: editingDivisionId,
+                        name: editingDivisionName,
+                        key: editingDivisionKey,
+                        description: editingDivisionDesc,
+                        deadline: editingDivisionDeadline
+                      })
+                    } else {
+                      createDivisionMutation.mutate({
+                        name: newDivisionName,
+                        key: newDivisionKey,
+                        description: newDivisionDesc,
+                        deadline: newDivisionDeadline
+                      })
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <label htmlFor="div-name-input" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Project Name</label>
+                    <Input
+                      id="div-name-input"
+                      required
+                      placeholder="e.g., Network Operations"
+                      value={editingDivisionId ? editingDivisionName : newDivisionName}
+                      onChange={(e) => {
+                        if (editingDivisionId) setEditingDivisionName(e.target.value)
+                        else setNewDivisionName(e.target.value)
+                      }}
+                      className="focus-visible:ring-brand-green"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label htmlFor="div-key-input" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Project Key</label>
+                      <Input
+                        id="div-key-input"
+                        required
+                        maxLength={6}
+                        placeholder="e.g., HRM"
+                        value={editingDivisionId ? editingDivisionKey : newDivisionKey}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                          if (editingDivisionId) setEditingDivisionKey(val)
+                          else setNewDivisionKey(val)
+                        }}
+                        className="focus-visible:ring-brand-green uppercase font-mono font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="div-deadline-input" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Deadline</label>
+                      <Input
+                        id="div-deadline-input"
+                        type="date"
+                        value={editingDivisionId ? (editingDivisionDeadline ? editingDivisionDeadline.split('T')[0] : '') : (newDivisionDeadline ? newDivisionDeadline.split('T')[0] : '')}
+                        onChange={(e) => {
+                          if (editingDivisionId) setEditingDivisionDeadline(e.target.value)
+                          else setNewDivisionDeadline(e.target.value)
+                        }}
+                        className="focus-visible:ring-brand-green font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Description</label>
+                    <RichTextEditor
+                      value={editingDivisionId ? editingDivisionDesc : newDivisionDesc}
+                      onChange={(val) => {
+                        if (editingDivisionId) setEditingDivisionDesc(val)
+                        else setNewDivisionDesc(val)
+                      }}
+                      placeholder="Specify what this project handles..."
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      disabled={createDivisionMutation.isPending || updateDivisionMutation.isPending}
+                      className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold flex-1"
+                    >
+                      {editingDivisionId ? 'Save Changes' : 'Create Project'}
+                    </Button>
+                    {editingDivisionId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingDivisionId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* List of current divisions */}
+          <div className="lg:col-span-8">
+            <Card className="border-zinc-105 shadow-xs rounded-2xl bg-white">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-zinc-950">Active Projects</CardTitle>
+                <CardDescription className="text-zinc-500">
+                  A list of all projects configured in the system.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingDivisions ? (
+                  <div className="text-center py-12 text-zinc-500 text-sm">Loading projects...</div>
+                ) : divisions.length === 0 ? (
+                  <div className="text-center py-12 text-zinc-400 text-sm">No projects configured.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-zinc-100 hover:bg-transparent">
+                          <TableHead className="font-bold text-zinc-500">Project Name</TableHead>
+                          <TableHead className="font-bold text-zinc-500">Key</TableHead>
+                          <TableHead className="font-bold text-zinc-500">Deadline</TableHead>
+                          <TableHead className="font-bold text-zinc-500">Description</TableHead>
+                          <TableHead className="font-bold text-zinc-500 text-center">Linked Issues</TableHead>
+                          <TableHead className="font-bold text-zinc-500 text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {divisions.map((div) => (
+                          <TableRow key={div.id} className="hover:bg-zinc-50/50 transition-colors">
+                            <TableCell className="font-semibold text-zinc-900">{div.name}</TableCell>
+                            <TableCell>
+                              <span className="font-mono font-bold text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-750 dark:text-zinc-350 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-750">
+                                {div.key}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-zinc-650 dark:text-zinc-400 font-medium text-xs">
+                              {div.deadline ? new Date(div.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'No Deadline'}
+                            </TableCell>
+                            <TableCell className="text-zinc-500 max-w-xs truncate">{div.description ? stripHtml(div.description) : '—'}</TableCell>
+                            <TableCell className="text-center font-bold text-zinc-700">{div._count?.issues || 0}</TableCell>
+                            <TableCell className="text-right space-x-2">
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingDivisionId(div.id)
+                                  setEditingDivisionName(div.name)
+                                  setEditingDivisionKey(div.key)
+                                  setEditingDivisionDesc(div.description || '')
+                                  setEditingDivisionDeadline(div.deadline || '')
+                                }}
+                                className="text-xs font-semibold cursor-pointer"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="xs"
+                                variant="destructive"
+                                onClick={() => {
+                                  setDeleteDivisionId(div.id)
+                                }}
+                                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer"
+                              >
+                                Delete
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* Modals and Overlays are handled on the Issue Details page directly */}
 
       {warnUserId && (
@@ -1105,6 +1403,65 @@ function AdminDashboardInner() {
                 className="bg-red-600 text-white hover:bg-red-700"
               >
                 Reject Request
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {approvingUserObj && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-sm w-full p-6 space-y-4 border border-zinc-150 dark:border-zinc-800">
+            <h3 className="text-lg font-bold text-zinc-950 dark:text-white">Approve User & Assign Role</h3>
+            <p className="text-sm text-zinc-500">
+              Assign a role for <strong className="text-zinc-900 dark:text-white">{approvingUserObj.name}</strong> ({approvingUserObj.email}):
+            </p>
+            <div className="space-y-1.5">
+              <label htmlFor="assign-role-select" className="text-xs font-semibold text-zinc-500">System Role</label>
+              <select
+                id="assign-role-select"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value as any)}
+                className="w-full p-2 border border-zinc-200 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+              >
+                <option value="USER">Normal User (Employee)</option>
+                <option value="AGENT">Support Agent</option>
+                <option value="ADMIN">Administrator</option>
+              </select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setApprovingUserObj(null)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  approveRegistrationMutation.mutate({ userId: approvingUserObj.id, role: selectedRole })
+                  setApprovingUserObj(null)
+                }}
+                className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold cursor-pointer"
+              >
+                Confirm & Approve
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteDivisionId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl max-w-sm w-full p-6 space-y-4 border border-zinc-150 dark:border-zinc-800">
+            <h3 className="text-lg font-bold text-zinc-950 dark:text-white">Delete Project</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Are you sure you want to delete this project? Related issues will have their project set to <strong>None</strong>. This cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setDeleteDivisionId(null)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  deleteDivisionMutation.mutate(deleteDivisionId)
+                  setDeleteDivisionId(null)
+                }}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-semibold cursor-pointer border-none"
+              >
+                Delete Project
               </Button>
             </div>
           </div>

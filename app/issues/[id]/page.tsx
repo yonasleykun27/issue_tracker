@@ -55,6 +55,12 @@ interface Issue {
     email: string
   } | null
   rejectionReason?: string | null
+  projectDivisionId?: number | null
+  projectDivision?: {
+    id: number
+    name: string
+    key: string
+  } | null
 }
 
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -84,6 +90,8 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
   const [assignedToId, setAssignedToId] = useState('')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [projectDivisionId, setProjectDivisionId] = useState('')
+  const [divisions, setDivisions] = useState<any[]>([])
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
 
@@ -115,6 +123,14 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
     enabled: userRole === 'ADMIN'
   })
 
+  // Load divisions list
+  useEffect(() => {
+    fetch('/api/admin/divisions')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setDivisions(data))
+      .catch(console.error)
+  }, [])
+
   // Populate form states when issue data is fetched
   useEffect(() => {
     if (issue) {
@@ -125,6 +141,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       setAssignedToId(issue.assignedToId ? issue.assignedToId.toString() : '')
       setImageUrl(issue.imageUrl || null)
       setRejectionReason(issue.rejectionReason || '')
+      setProjectDivisionId(issue.projectDivisionId ? issue.projectDivisionId.toString() : '')
     }
   }, [issue])
 
@@ -242,6 +259,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       body.assignedToId = assignedToId ? parseInt(assignedToId) : null
       body.imageUrl = imageUrl
       body.rejectionReason = status === 'REJECTED' ? rejectionReason : null
+      body.projectDivisionId = projectDivisionId ? parseInt(projectDivisionId) : null
     } else if (userRole === 'AGENT') {
       body.status = status
     } else {
@@ -250,6 +268,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         body.title = title
         body.description = description
         body.imageUrl = imageUrl
+        body.projectDivisionId = projectDivisionId ? parseInt(projectDivisionId) : null
       }
     }
 
@@ -319,7 +338,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
               <span>{userRole === 'ADMIN' && mode === 'edit' ? "Back to All Incidents" : "Back to Dashboard"}</span>
             </Link>
             <CardTitle className="text-2xl font-extrabold text-zinc-950">
-              TKT-{String(issue.id).padStart(4, '0')}
+              {issue.projectDivision?.key || 'GEN'}-{issue.id}
             </CardTitle>
           </div>
 
@@ -352,7 +371,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-4">
                 <div>
                   <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Priority</span>
                   <Badge variant="outline" className={`font-semibold rounded-full border-none px-2.5 py-0.5 mt-0.5 text-xs ${
@@ -362,6 +381,12 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   }`}>
                     {priority}
                   </Badge>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Project</span>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">
+                    {issue.projectDivision?.name || 'None'}
+                  </p>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-widest block mb-1">Reporter</span>
@@ -441,7 +466,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label htmlFor="status" className="block text-sm font-semibold text-zinc-700 mb-1.5">
                     Status
@@ -481,6 +506,26 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
                     <option value="HIGH">High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="projectDivision" className="block text-sm font-semibold text-zinc-700 mb-1.5">
+                    Project
+                  </label>
+                  <select
+                    id="projectDivision"
+                    value={projectDivisionId}
+                    disabled={!canEditTitleDescImage}
+                    onChange={(e) => setProjectDivisionId(e.target.value)}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green disabled:opacity-75 disabled:bg-zinc-50 cursor-pointer"
+                  >
+                    <option value="">None</option>
+                    {divisions.map((div) => (
+                      <option key={div.id} value={div.id}>
+                        {div.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

@@ -51,4 +51,8 @@ eslint_*.txt
 # presentation files
 presentation.html
 
-
+# backup archives
+issue_tracker.rar
+*.zip
+*.rar
+*.tar.gz

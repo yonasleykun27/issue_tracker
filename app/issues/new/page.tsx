@@ -30,9 +30,38 @@ export default function NewIssuePage() {
   const [address, setAddress] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // Project Division States
+  const [divisions, setDivisions] = useState<any[]>([])
+  const [projectDivisionId, setProjectDivisionId] = useState('')
+
+  // Admin Assignment States
+  const [agents, setAgents] = useState<any[]>([])
+  const [assignedToId, setAssignedToId] = useState('')
+
   // Image Upload States
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+
+  // Load divisions list
+  useEffect(() => {
+    fetch('/api/admin/divisions')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setDivisions(data))
+      .catch(console.error)
+  }, [])
+
+  // Load active agents list for admin assignment options
+  useEffect(() => {
+    if (userRole === 'ADMIN') {
+      fetch('/api/admin/users')
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          const filtered = data.filter((u: any) => (u.role === 'AGENT' || u.role === 'ADMIN') && u.status === 'ACTIVE')
+          setAgents(filtered)
+        })
+        .catch(console.error)
+    }
+  }, [userRole])
 
   // Redirect non-employees and pending approval accounts away from this page
   const userStatus = (session?.user as any)?.status
@@ -41,8 +70,8 @@ export default function NewIssuePage() {
       if (userStatus === 'PENDING') {
         toast.error('Your registration is pending administrator approval.')
         router.replace('/')
-      } else if (userRole !== 'USER') {
-        toast.error('Only employees can report issues.')
+      } else if (userRole !== 'USER' && userRole !== 'ADMIN') {
+        toast.error('Only employees and administrators can create tasks.')
         router.replace('/')
       }
     }
@@ -80,29 +109,34 @@ export default function NewIssuePage() {
       toast.error('Title and description are required')
       return
     }
-    if (!phone) {
-      toast.error('Phone number is required')
-      return
-    }
-    if (!address) {
-      toast.error('Problem location / address is required')
+    if (!projectDivisionId) {
+      toast.error('Project is required')
       return
     }
 
     setSubmitting(true)
 
     try {
+      const payload: any = {
+        title,
+        description,
+        priority,
+        imageUrl,
+        phone,
+        address,
+        projectDivisionId
+      }
+
+      if (userRole === 'ADMIN' && assignedToId) {
+        payload.assignedToId = assignedToId
+      }
+
       const response = await fetch('/api/issues', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          phone,
-          address,
-          imageUrl: imageUrl || null
-        })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
@@ -152,33 +186,76 @@ export default function NewIssuePage() {
               />
             </div>
 
-            {/* Priority */}
+            {/* Project */}
             <div>
-              <label htmlFor="priority" className="block text-sm font-semibold text-zinc-700 mb-1.5">
-                Priority Level
+              <label htmlFor="projectDivision" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                Project <span className="text-red-500">*</span>
               </label>
               <select
-                id="priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green"
+                id="projectDivision"
+                required
+                value={projectDivisionId}
+                onChange={(e) => setProjectDivisionId(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 focus:outline-hidden focus:ring-1 focus:ring-brand-green"
               >
-                <option value="LOW">Low — Minor inconvenience</option>
-                <option value="MEDIUM">Medium — Service disrupted</option>
-                <option value="HIGH">High — Fully down / critical</option>
+                <option value="">Select Project...</option>
+                {divisions.map((div) => (
+                  <option key={div.id} value={div.id}>
+                    {div.name}
+                  </option>
+                ))}
               </select>
+            </div>
+
+            {/* Priority & Assignee Option */}
+            <div className={`grid grid-cols-1 ${userRole === 'ADMIN' ? 'sm:grid-cols-2' : ''} gap-4`}>
+              <div>
+                <label htmlFor="priority" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-350 mb-1.5">
+                  Priority Level
+                </label>
+                <select
+                  id="priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-750 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green"
+                >
+                  <option value="LOW">Low — Minor inconvenience</option>
+                  <option value="MEDIUM">Medium — Service disrupted</option>
+                  <option value="HIGH">High — Fully down / critical</option>
+                </select>
+              </div>
+
+              {userRole === 'ADMIN' && (
+                <div>
+                  <label htmlFor="assignedTo" className="block text-sm font-semibold text-zinc-700 dark:text-zinc-355 mb-1.5">
+                    Assign Agent (Optional)
+                  </label>
+                  <select
+                    id="assignedTo"
+                    value={assignedToId}
+                    onChange={(e) => setAssignedToId(e.target.value)}
+                    className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-750 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-brand-green cursor-pointer"
+                  >
+                    <option value="">Unassigned (Round-Robin fallback)</option>
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name} ({agent.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Contact Phone */}
             <div>
               <label htmlFor="phone" className="block text-sm font-semibold text-zinc-700 mb-1.5">
                 <FaPhoneAlt className="inline mr-1.5 text-zinc-400" size={12} />
-                Contact Phone Number <span className="text-red-500">*</span>
+                Contact Phone Number <span className="text-zinc-400 font-normal">(Optional)</span>
               </label>
               <Input
                 id="phone"
                 type="tel"
-                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="focus-visible:ring-brand-green"
@@ -190,12 +267,11 @@ export default function NewIssuePage() {
             <div>
               <label htmlFor="address" className="block text-sm font-semibold text-zinc-700 mb-1.5">
                 <FaMapMarkerAlt className="inline mr-1.5 text-zinc-400" size={12} />
-                Problem Location / Address <span className="text-red-500">*</span>
+                Problem Location / Address <span className="text-zinc-400 font-normal">(Optional)</span>
               </label>
               <Input
                 id="address"
                 type="text"
-                required
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className="focus-visible:ring-brand-green"

@@ -1,0 +1,72 @@
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import prisma from '@/app/lib/prisma'
+
+// DELETE — remove a division (admin only)
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session || (session.user as any)?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const { id } = await params
+    const divId = parseInt(id)
+
+    // Nullify projectDivisionId on related issues before deleting
+    await prisma.issue.updateMany({
+      where: { projectDivisionId: divId },
+      data: { projectDivisionId: null }
+    })
+
+    await prisma.division.delete({ where: { id: divId } })
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 })
+  }
+}
+
+// PATCH — update a division (admin only)
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session || (session.user as any)?.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  try {
+    const { id } = await params
+    const { name, key, description, deadline } = await req.json()
+    if (!name?.trim()) {
+      return NextResponse.json({ error: 'Project name is required' }, { status: 400 })
+    }
+    if (!key?.trim()) {
+      return NextResponse.json({ error: 'Project key is required' }, { status: 400 })
+    }
+
+    const cleanKey = key.trim().toUpperCase()
+    if (!/^[A-Z0-9]{2,6}$/.test(cleanKey)) {
+      return NextResponse.json({ error: 'Project key must be 2 to 6 alphanumeric characters (e.g. HRM)' }, { status: 400 })
+    }
+
+    const division = await prisma.division.update({
+      where: { id: parseInt(id) },
+      data: {
+        name: name.trim(),
+        key: cleanKey,
+        description: description?.trim() || null,
+        deadline: deadline ? new Date(deadline) : null
+      }
+    })
+    return NextResponse.json(division)
+  } catch (e: any) {
+    if (e.code === 'P2002') {
+      const target = e.meta?.target || []
+      if (target.includes('key')) {
+        return NextResponse.json({ error: 'A project with this key already exists' }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'A project with this name already exists' }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Failed to update project' }, { status: 500 })
+  }
+}

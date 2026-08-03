@@ -69,8 +69,8 @@ export default function NavBar() {
 
   return (
     <nav className="sticky top-0 z-40 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 h-16 flex items-center justify-between shadow-sm transition-colors duration-300">
-      {/* Ethio Telecom brand gradient top line */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-brand-green to-brand-blue" />
+      {/* Ethio Telecom brand flat top line */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-brand-green" />
       
       <div className="flex items-center space-x-8">
         <Link href="/" className="flex items-center space-x-2">

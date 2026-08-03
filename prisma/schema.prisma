@@ -38,6 +38,16 @@ enum UserStatus {
   ON_LEAVE
 }
 
+model Division {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  key         String   @unique @default("PROJ")
+  description String?
+  deadline    DateTime?
+  createdAt   DateTime @default(now())
+  issues      Issue[]
+}
+
 model Issue {
   id              Int      @id @default(autoincrement())
   title           String
@@ -50,6 +60,9 @@ model Issue {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   rejectionReason String?
+
+  projectDivisionId Int?
+  projectDivision   Division? @relation(fields: [projectDivisionId], references: [id])
   
   reportedById Int
   reportedBy   User     @relation("ReportedIssues", fields: [reportedById], references: [id])
