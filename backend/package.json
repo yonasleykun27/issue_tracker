@@ -9,7 +9,7 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "build": "prisma generate --schema=../prisma/schema.prisma && nest build",
+    "build": "cp ../prisma/schema.prisma ./schema.prisma && prisma generate --schema=schema.prisma && rm ./schema.prisma && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -21,7 +21,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "postinstall": "prisma generate --schema=../prisma/schema.prisma"
+    "postinstall": "cp ../prisma/schema.prisma ./schema.prisma && prisma generate --schema=schema.prisma && rm ./schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
