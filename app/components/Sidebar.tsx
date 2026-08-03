@@ -172,7 +172,7 @@ function SidebarInner({ isCollapsed, setIsCollapsed }: SidebarProps) {
             alt="Ethio Telecom Logo"
             width={32}
             height={32}
-            className="object-contain"
+            className="object-contain dark:bg-white dark:rounded dark:p-0.5"
           />
           <span className="font-extrabold text-zinc-800 dark:text-zinc-100 text-sm">IT Portal</span>
         </Link>

@@ -80,7 +80,7 @@ export default function NavBar() {
             width={120}
             height={36}
             style={{ width: 'auto', height: 'auto' }}
-            className="object-contain"
+            className="object-contain dark:bg-white dark:rounded dark:p-0.5"
             priority
           />
           <span className="text-zinc-400 dark:text-zinc-650 font-light border-l pl-3 border-zinc-200 dark:border-zinc-800 text-sm hidden md:inline">
