@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
-const NESTJS_URL = 'http://localhost:4000'
+const NESTJS_URL = process.env.NESTJS_URL || 'http://localhost:4000'
 
 const PUBLIC_API_PATHS = [
   '/api/register',
