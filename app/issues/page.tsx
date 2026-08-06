@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { truncateHtml, stripHtml } from '@/app/lib/stripHtml'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import NewIssueModal from '@/app/components/NewIssueModal'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   useReactTable,
@@ -60,6 +61,7 @@ export default function IssuesPage() {
   const userStatus = (session?.user as any)?.status
   
   const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [showNewIssueModal, setShowNewIssueModal] = useState(false)
 
   // Redirect if pending approval
   useEffect(() => {
@@ -474,14 +476,13 @@ export default function IssuesPage() {
             <span>📄 Download PDF</span>
           </Button>
           {(userRole === 'USER' || userRole === 'ADMIN') && (
-            <Link href="/issues/new">
-              <Button
-                className="bg-brand-green hover:bg-brand-dark-green text-white font-medium flex items-center space-x-1.5 shadow-sm h-9 cursor-pointer border-none"
-              >
-                <FaPlus size={12} />
-                <span>{userRole === 'ADMIN' ? 'New Task' : 'New Issue'}</span>
-              </Button>
-            </Link>
+            <Button
+              onClick={() => setShowNewIssueModal(true)}
+              className="bg-brand-green hover:bg-brand-dark-green text-white font-medium flex items-center space-x-1.5 shadow-sm h-9 cursor-pointer border-none"
+            >
+              <FaPlus size={12} />
+              <span>{userRole === 'ADMIN' ? 'New Task' : 'New Issue'}</span>
+            </Button>
           )}
         </div>
       </div>
@@ -703,6 +704,13 @@ export default function IssuesPage() {
           </Card>
         </div>
       )}
+
+      {/* New Issue Modal — opens as overlay instead of navigating away */}
+      <NewIssueModal
+        open={showNewIssueModal}
+        onClose={() => setShowNewIssueModal(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['issues'] })}
+      />
     </div>
   )
 }
