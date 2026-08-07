@@ -2,6 +2,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.x-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10.x-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.org/)
+[![Swagger](https://img.shields.io/badge/Swagger-API%20Docs-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://swagger.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![Neon](https://img.shields.io/badge/Neon-PostgreSQL-00E699?style=for-the-badge&logo=postgresql&logoColor=white)](https://neon.tech/)
@@ -93,8 +94,17 @@ The application is structured as a **decoupled monorepo** using a **BFF (Backend
 - **Notification bell** in the top nav bar with live badge count (polls every 10s)
 - **Account warnings** indicator with dropdown showing warning logs
 - **Rich text editor** (Tiptap) for issue descriptions — Word-like toolbar
+- **Modal-Based Operations**: "New Task" and "New/Edit Project" open directly as interactive overlay modals without page reloads
 - Responsive design — works on desktop and mobile (slide-in mobile drawer)
 - Premium design with brand green/blue gradients, glassmorphism cards, micro-animations
+
+---
+
+## 📚 API Documentation (Swagger)
+
+The NestJS backend includes built-in interactive **Swagger OpenAPI Documentation**:
+- Local URL: `http://localhost:4000/api/docs`
+- Features interactive endpoint testing (`GET`, `POST`, `PATCH`, `DELETE`) for all Modules: `Auth`, `Issues`, `Users`, `Divisions`, `Notifications`.
 
 ---
 
