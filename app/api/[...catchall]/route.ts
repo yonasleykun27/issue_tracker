@@ -5,6 +5,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 const NESTJS_URL = process.env.NESTJS_URL || 'http://localhost:4000'
 
 const PUBLIC_API_PATHS = [
+  '/api/docs',
+  '/api/admin/divisions',
   '/api/register',
   '/api/register/send-otp',
   '/api/auth/forgot-password',
