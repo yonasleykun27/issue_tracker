@@ -12,7 +12,9 @@ import {
 import { UsersService } from './users.service';
 import { Public, Roles, GetUser } from '../auth/auth.decorators';
 import { AuthGuard, AuthenticatedUser } from '../auth/auth.guard';
+import { ApiTags, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
 
+@ApiTags('Users / Auth')
 @Controller()
 @UseGuards(AuthGuard)
 export class UsersController {
@@ -22,24 +24,69 @@ export class UsersController {
 
   @Public()
   @Post('register/send-otp')
+  @ApiOperation({ summary: 'Send email OTP verification code for registration' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: {
+        email: { type: 'string', example: 'user@example.com' },
+      },
+    },
+  })
   async sendOtp(@Body('email') email: string) {
     return this.usersService.sendOtp(email);
   }
 
   @Public()
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user account with OTP & activation code' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'password', 'name'],
+      properties: {
+        name: { type: 'string', example: 'Yonas Leykun' },
+        email: { type: 'string', example: 'user@example.com' },
+        password: { type: 'string', example: 'Password123!' },
+        otp: { type: 'string', example: '123456' },
+        activationCode: { type: 'string', example: 'TELE_EMPLOYEE' },
+      },
+    },
+  })
   async register(@Body() body: any) {
     return this.usersService.register(body);
   }
 
   @Public()
   @Post('auth/forgot-password')
+  @ApiOperation({ summary: 'Send password reset link via email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: {
+        email: { type: 'string', example: 'user@example.com' },
+      },
+    },
+  })
   async forgotPassword(@Body('email') email: string) {
     return this.usersService.forgotPassword(email);
   }
 
   @Public()
   @Post('auth/reset-password')
+  @ApiOperation({ summary: 'Reset user password with reset token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['token', 'password'],
+      properties: {
+        token: { type: 'string', example: 'your-reset-token-here' },
+        password: { type: 'string', example: 'NewPassword123!' },
+      },
+    },
+  })
   async resetPassword(@Body() body: any) {
     return this.usersService.resetPassword(body);
   }
