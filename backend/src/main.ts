@@ -22,6 +22,7 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   // Railway assigns PORT dynamically — fallback to 4000 for local dev
   const port = process.env.PORT || 4000;
