@@ -96,14 +96,15 @@ export class UsersController {
   // 2. PROTECTED ROUTES (ANY AUTHENTICATED USER)
 
   @Post('profile/change-password')
-  @ApiOperation({ summary: 'Change current user password' })
+  @ApiOperation({ summary: 'Change current logged-in user password' })
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['currentPassword', 'newPassword'],
+      required: ['currentPassword', 'newPassword', 'confirmPassword'],
       properties: {
         currentPassword: { type: 'string', example: 'OldPassword123!' },
         newPassword: { type: 'string', example: 'NewPassword123!' },
+        confirmPassword: { type: 'string', example: 'NewPassword123!' },
       },
     },
   })
