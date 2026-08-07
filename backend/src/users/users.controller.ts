@@ -42,17 +42,16 @@ export class UsersController {
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user account with OTP & activation code' })
+  @ApiOperation({ summary: 'Register a new user account with email OTP verification' })
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['email', 'password', 'name'],
+      required: ['name', 'email', 'password', 'otp'],
       properties: {
         name: { type: 'string', example: 'Yonas Leykun' },
         email: { type: 'string', example: 'user@example.com' },
         password: { type: 'string', example: 'Password123!' },
         otp: { type: 'string', example: '123456' },
-        activationCode: { type: 'string', example: 'TELE_EMPLOYEE' },
       },
     },
   })
