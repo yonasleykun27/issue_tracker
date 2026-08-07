@@ -64,14 +64,23 @@ function ResetPasswordForm() {
       <div className="hidden lg:flex lg:col-span-5 bg-brand-green text-white flex-col justify-between p-8 relative overflow-hidden">
         <div className="relative z-10 flex flex-col h-full justify-between gap-8">
           <div className="flex items-center">
-            <div className="bg-white p-2 rounded-xl shadow-xs inline-block">
+            <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-xs inline-block">
               <Image
                 src="/Et-logo.png"
                 alt="Ethio Telecom Logo"
                 width={90}
                 height={30}
                 style={{ width: 'auto', height: 'auto' }}
-                className="object-contain"
+                className="object-contain block dark:hidden"
+                priority
+              />
+              <Image
+                src="/Et-logo-dark-v2.png"
+                alt="Ethio Telecom Logo"
+                width={90}
+                height={30}
+                style={{ width: 'auto', height: 'auto' }}
+                className="object-contain hidden dark:block"
                 priority
               />
             </div>
@@ -112,7 +121,16 @@ function ResetPasswordForm() {
             width={140}
             height={45}
             style={{ width: 'auto', height: 'auto' }}
-            className="object-contain"
+            className="object-contain block dark:hidden"
+            priority
+          />
+          <Image
+            src="/Et-logo-dark-v2.png"
+            alt="Ethio Telecom"
+            width={140}
+            height={45}
+            style={{ width: 'auto', height: 'auto' }}
+            className="object-contain hidden dark:block"
             priority
           />
         </div>

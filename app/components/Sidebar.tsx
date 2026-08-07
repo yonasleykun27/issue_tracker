@@ -167,12 +167,21 @@ function SidebarInner({ isCollapsed, setIsCollapsed }: SidebarProps) {
       {/* Mobile Header and Drawer menu */}
       <div className="md:hidden flex items-center justify-between px-6 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 shadow-xs sticky top-0 z-40 transition-colors">
         <Link href="/" className="flex items-center space-x-2.5">
+          {/* Light mode logo */}
           <Image
             src="/Et-logo.png"
             alt="Ethio Telecom Logo"
             width={32}
             height={32}
-            className="object-contain dark:bg-white dark:rounded dark:p-0.5"
+            className="object-contain block dark:hidden"
+          />
+          {/* Dark mode logo — transparent bg, white text, same icon colours */}
+          <Image
+            src="/Et-logo-dark-v2.png"
+            alt="Ethio Telecom Logo"
+            width={32}
+            height={32}
+            className="object-contain hidden dark:block"
           />
           <span className="font-extrabold text-zinc-800 dark:text-zinc-100 text-sm">IT Portal</span>
         </Link>

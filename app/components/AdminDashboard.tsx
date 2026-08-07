@@ -36,7 +36,8 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaSort,
-  FaTrash
+  FaTrash,
+  FaPlus
 } from 'react-icons/fa'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -49,6 +50,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import dynamic from 'next/dynamic'
+import { X } from 'lucide-react'
 
 const RichTextEditor = dynamic(() => import('@/app/components/RichTextEditor'), { ssr: false })
 
@@ -125,6 +127,7 @@ function AdminDashboardInner() {
   const [editingDivisionDesc, setEditingDivisionDesc] = useState('')
   const [editingDivisionDeadline, setEditingDivisionDeadline] = useState('')
   const [deleteDivisionId, setDeleteDivisionId] = useState<number | null>(null)
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false)
 
   // TanStack Table states for Incidents Queue
   const [sorting, setSorting] = useState<SortingState>([])
@@ -1114,201 +1117,235 @@ function AdminDashboardInner() {
 
       {/* ── PROJECT DIVISIONS TAB ── */}
       {activeTab === 'divisions' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Create / Edit Form */}
-          <div className="lg:col-span-4">
-            <Card className="border-zinc-105 shadow-xs rounded-2xl bg-white sticky top-20">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-zinc-950">
-                  {editingDivisionId ? 'Edit Project' : 'New Project'}
-                </CardTitle>
-                <CardDescription className="text-zinc-500">
-                  {editingDivisionId 
-                    ? 'Update the project details.' 
-                    : 'Add a new project to categorize operational issues.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    if (editingDivisionId) {
-                      updateDivisionMutation.mutate({
-                        id: editingDivisionId,
-                        name: editingDivisionName,
-                        key: editingDivisionKey,
-                        description: editingDivisionDesc,
-                        deadline: editingDivisionDeadline
-                      })
-                    } else {
-                      createDivisionMutation.mutate({
-                        name: newDivisionName,
-                        key: newDivisionKey,
-                        description: newDivisionDesc,
-                        deadline: newDivisionDeadline
-                      })
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1.5">
-                    <label htmlFor="div-name-input" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Project Name</label>
-                    <Input
-                      id="div-name-input"
-                      required
-                      placeholder="e.g., Network Operations"
-                      value={editingDivisionId ? editingDivisionName : newDivisionName}
-                      onChange={(e) => {
-                        if (editingDivisionId) setEditingDivisionName(e.target.value)
-                        else setNewDivisionName(e.target.value)
-                      }}
-                      className="focus-visible:ring-brand-green"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label htmlFor="div-key-input" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Project Key</label>
-                      <Input
-                        id="div-key-input"
-                        required
-                        maxLength={6}
-                        placeholder="e.g., HRM"
-                        value={editingDivisionId ? editingDivisionKey : newDivisionKey}
-                        onChange={(e) => {
-                          const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
-                          if (editingDivisionId) setEditingDivisionKey(val)
-                          else setNewDivisionKey(val)
-                        }}
-                        className="focus-visible:ring-brand-green uppercase font-mono font-bold"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label htmlFor="div-deadline-input" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Deadline</label>
-                      <Input
-                        id="div-deadline-input"
-                        type="date"
-                        value={editingDivisionId ? (editingDivisionDeadline ? editingDivisionDeadline.split('T')[0] : '') : (newDivisionDeadline ? newDivisionDeadline.split('T')[0] : '')}
-                        onChange={(e) => {
-                          if (editingDivisionId) setEditingDivisionDeadline(e.target.value)
-                          else setNewDivisionDeadline(e.target.value)
-                        }}
-                        className="focus-visible:ring-brand-green font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Description</label>
-                    <RichTextEditor
-                      value={editingDivisionId ? editingDivisionDesc : newDivisionDesc}
-                      onChange={(val) => {
-                        if (editingDivisionId) setEditingDivisionDesc(val)
-                        else setNewDivisionDesc(val)
-                      }}
-                      placeholder="Specify what this project handles..."
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      type="submit"
-                      disabled={createDivisionMutation.isPending || updateDivisionMutation.isPending}
-                      className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold flex-1"
-                    >
-                      {editingDivisionId ? 'Save Changes' : 'Create Project'}
-                    </Button>
-                    {editingDivisionId && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setEditingDivisionId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* List of current divisions */}
-          <div className="lg:col-span-8">
-            <Card className="border-zinc-105 shadow-xs rounded-2xl bg-white">
-              <CardHeader>
+        <div className="space-y-4">
+          {/* Active Projects — full width */}
+          <Card className="border-zinc-105 shadow-xs rounded-2xl bg-white">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
                 <CardTitle className="text-xl font-bold text-zinc-950">Active Projects</CardTitle>
                 <CardDescription className="text-zinc-500">
                   A list of all projects configured in the system.
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loadingDivisions ? (
-                  <div className="text-center py-12 text-zinc-500 text-sm">Loading projects...</div>
-                ) : divisions.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-400 text-sm">No projects configured.</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-b border-zinc-100 hover:bg-transparent">
-                          <TableHead className="font-bold text-zinc-500">Project Name</TableHead>
-                          <TableHead className="font-bold text-zinc-500">Key</TableHead>
-                          <TableHead className="font-bold text-zinc-500">Deadline</TableHead>
-                          <TableHead className="font-bold text-zinc-500">Description</TableHead>
-                          <TableHead className="font-bold text-zinc-500 text-center">Linked Issues</TableHead>
-                          <TableHead className="font-bold text-zinc-500 text-right">Actions</TableHead>
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingDivisionId(null)
+                  setNewDivisionName('')
+                  setNewDivisionKey('')
+                  setNewDivisionDesc('')
+                  setNewDivisionDeadline('')
+                  setShowNewProjectModal(true)
+                }}
+                className="bg-brand-green hover:bg-brand-dark-green text-white font-medium flex items-center space-x-1.5 shadow-sm h-9 cursor-pointer border-none"
+              >
+                <FaPlus size={12} />
+                <span>New Project</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loadingDivisions ? (
+                <div className="text-center py-12 text-zinc-500 text-sm">Loading projects...</div>
+              ) : divisions.length === 0 ? (
+                <div className="text-center py-12 text-zinc-400 text-sm">No projects configured.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-zinc-100 hover:bg-transparent">
+                        <TableHead className="font-bold text-zinc-500">Project Name</TableHead>
+                        <TableHead className="font-bold text-zinc-500">Key</TableHead>
+                        <TableHead className="font-bold text-zinc-500">Deadline</TableHead>
+                        <TableHead className="font-bold text-zinc-500">Description</TableHead>
+                        <TableHead className="font-bold text-zinc-500 text-center">Linked Issues</TableHead>
+                        <TableHead className="font-bold text-zinc-500 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {divisions.map((div) => (
+                        <TableRow key={div.id} className="hover:bg-zinc-50/50 transition-colors">
+                          <TableCell className="font-semibold text-zinc-900">{div.name}</TableCell>
+                          <TableCell>
+                            <span className="font-mono font-bold text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-750 dark:text-zinc-350 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-750">
+                              {div.key}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-zinc-650 dark:text-zinc-400 font-medium text-xs">
+                            {div.deadline ? new Date(div.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'No Deadline'}
+                          </TableCell>
+                          <TableCell className="text-zinc-500 max-w-xs truncate">{div.description ? stripHtml(div.description) : '—'}</TableCell>
+                          <TableCell className="text-center font-bold text-zinc-700">{div._count?.issues || 0}</TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingDivisionId(div.id)
+                                setEditingDivisionName(div.name)
+                                setEditingDivisionKey(div.key)
+                                setEditingDivisionDesc(div.description || '')
+                                setEditingDivisionDeadline(div.deadline || '')
+                                setShowNewProjectModal(true)
+                              }}
+                              className="text-xs font-semibold cursor-pointer"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="destructive"
+                              onClick={() => setDeleteDivisionId(div.id)}
+                              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer"
+                            >
+                              Delete
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {divisions.map((div) => (
-                          <TableRow key={div.id} className="hover:bg-zinc-50/50 transition-colors">
-                            <TableCell className="font-semibold text-zinc-900">{div.name}</TableCell>
-                            <TableCell>
-                              <span className="font-mono font-bold text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-750 dark:text-zinc-350 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-750">
-                                {div.key}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-zinc-650 dark:text-zinc-400 font-medium text-xs">
-                              {div.deadline ? new Date(div.deadline).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'No Deadline'}
-                            </TableCell>
-                            <TableCell className="text-zinc-500 max-w-xs truncate">{div.description ? stripHtml(div.description) : '—'}</TableCell>
-                            <TableCell className="text-center font-bold text-zinc-700">{div._count?.issues || 0}</TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingDivisionId(div.id)
-                                  setEditingDivisionName(div.name)
-                                  setEditingDivisionKey(div.key)
-                                  setEditingDivisionDesc(div.description || '')
-                                  setEditingDivisionDeadline(div.deadline || '')
-                                }}
-                                className="text-xs font-semibold cursor-pointer"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="destructive"
-                                onClick={() => {
-                                  setDeleteDivisionId(div.id)
-                                }}
-                                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer"
-                              >
-                                Delete
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── NEW / EDIT PROJECT MODAL ── */}
+      {showNewProjectModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-modal="true"
+          role="dialog"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => { setShowNewProjectModal(false); setEditingDivisionId(null) }}
+          />
+          {/* Modal Panel */}
+          <div className="relative z-10 w-full max-w-lg mx-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+              <div>
+                <h2 className="text-xl font-extrabold text-zinc-950 dark:text-zinc-50">
+                  {editingDivisionId ? 'Edit Project' : 'New Project'}
+                </h2>
+                <p className="text-sm text-zinc-500 mt-0.5">
+                  {editingDivisionId ? 'Update the project details.' : 'Add a new project to categorize operational issues.'}
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowNewProjectModal(false); setEditingDivisionId(null) }}
+                className="ml-4 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {/* Form */}
+            <div className="px-6 py-5">
+              <form
+                id="project-modal-form"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  if (editingDivisionId) {
+                    updateDivisionMutation.mutate({
+                      id: editingDivisionId,
+                      name: editingDivisionName,
+                      key: editingDivisionKey,
+                      description: editingDivisionDesc,
+                      deadline: editingDivisionDeadline
+                    })
+                  } else {
+                    createDivisionMutation.mutate({
+                      name: newDivisionName,
+                      key: newDivisionKey,
+                      description: newDivisionDesc,
+                      deadline: newDivisionDeadline
+                    })
+                  }
+                  setShowNewProjectModal(false)
+                  setEditingDivisionId(null)
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1.5">
+                  <label htmlFor="modal-div-name" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Project Name</label>
+                  <Input
+                    id="modal-div-name"
+                    required
+                    placeholder="e.g., Network Operations"
+                    value={editingDivisionId ? editingDivisionName : newDivisionName}
+                    onChange={(e) => {
+                      if (editingDivisionId) setEditingDivisionName(e.target.value)
+                      else setNewDivisionName(e.target.value)
+                    }}
+                    className="focus-visible:ring-brand-green"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="modal-div-key" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Project Key</label>
+                    <Input
+                      id="modal-div-key"
+                      required
+                      maxLength={6}
+                      placeholder="e.g., HRM"
+                      value={editingDivisionId ? editingDivisionKey : newDivisionKey}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+                        if (editingDivisionId) setEditingDivisionKey(val)
+                        else setNewDivisionKey(val)
+                      }}
+                      className="focus-visible:ring-brand-green uppercase font-mono font-bold"
+                    />
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <div className="space-y-1.5">
+                    <label htmlFor="modal-div-deadline" className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Deadline</label>
+                    <Input
+                      id="modal-div-deadline"
+                      type="date"
+                      value={editingDivisionId ? (editingDivisionDeadline ? editingDivisionDeadline.split('T')[0] : '') : (newDivisionDeadline ? newDivisionDeadline.split('T')[0] : '')}
+                      onChange={(e) => {
+                        if (editingDivisionId) setEditingDivisionDeadline(e.target.value)
+                        else setNewDivisionDeadline(e.target.value)
+                      }}
+                      className="focus-visible:ring-brand-green font-medium"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-650 dark:text-zinc-400">Description</label>
+                  <RichTextEditor
+                    value={editingDivisionId ? editingDivisionDesc : newDivisionDesc}
+                    onChange={(val) => {
+                      if (editingDivisionId) setEditingDivisionDesc(val)
+                      else setNewDivisionDesc(val)
+                    }}
+                    placeholder="Specify what this project handles..."
+                  />
+                </div>
+              </form>
+            </div>
+            {/* Footer */}
+            <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setShowNewProjectModal(false); setEditingDivisionId(null) }}
+                className="border-zinc-200 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="project-modal-form"
+                disabled={createDivisionMutation.isPending || updateDivisionMutation.isPending}
+                className="bg-brand-green hover:bg-brand-dark-green text-white font-semibold cursor-pointer"
+              >
+                {editingDivisionId ? 'Save Changes' : 'Create Project'}
+              </Button>
+            </div>
           </div>
         </div>
       )}

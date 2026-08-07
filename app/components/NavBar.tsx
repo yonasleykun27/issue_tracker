@@ -74,13 +74,24 @@ export default function NavBar() {
       
       <div className="flex items-center space-x-8">
         <Link href="/" className="flex items-center space-x-2">
+          {/* Light mode logo */}
           <Image
             src="/Et-logo.png"
             alt="Ethio Telecom Logo"
             width={120}
             height={36}
             style={{ width: 'auto', height: 'auto' }}
-            className="object-contain dark:bg-white dark:rounded dark:p-0.5"
+            className="object-contain block dark:hidden"
+            priority
+          />
+          {/* Dark mode logo — transparent bg, white text, same icon colours */}
+          <Image
+            src="/Et-logo-dark-v2.png"
+            alt="Ethio Telecom Logo"
+            width={120}
+            height={36}
+            style={{ width: 'auto', height: 'auto' }}
+            className="object-contain hidden dark:block"
             priority
           />
           <span className="text-zinc-400 dark:text-zinc-650 font-light border-l pl-3 border-zinc-200 dark:border-zinc-800 text-sm hidden md:inline">
