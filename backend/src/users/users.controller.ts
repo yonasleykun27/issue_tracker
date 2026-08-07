@@ -77,14 +77,15 @@ export class UsersController {
 
   @Public()
   @Post('auth/reset-password')
-  @ApiOperation({ summary: 'Reset user password with reset token' })
+  @ApiOperation({ summary: 'Reset user password using email OTP verification code' })
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['token', 'password'],
+      required: ['email', 'otp', 'newPassword'],
       properties: {
-        token: { type: 'string', example: 'your-reset-token-here' },
-        password: { type: 'string', example: 'NewPassword123!' },
+        email: { type: 'string', example: 'user@example.com' },
+        otp: { type: 'string', example: '123456' },
+        newPassword: { type: 'string', example: 'NewPassword123!' },
       },
     },
   })
