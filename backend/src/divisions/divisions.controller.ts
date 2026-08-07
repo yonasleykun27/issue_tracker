@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DivisionsService } from './divisions.service';
-import { Roles } from '../auth/auth.decorators';
+import { Roles, Public } from '../auth/auth.decorators';
 import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('admin/divisions')
@@ -18,6 +18,7 @@ import { AuthGuard } from '../auth/auth.guard';
 export class DivisionsController {
   constructor(private readonly divisionsService: DivisionsService) {}
 
+  @Public()
   @Get()
   async listDivisions() {
     return this.divisionsService.listDivisions();
