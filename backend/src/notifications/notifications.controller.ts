@@ -8,18 +8,31 @@ import {
 import { NotificationsService } from './notifications.service';
 import { AuthGuard, AuthenticatedUser } from '../auth/auth.guard';
 import { GetUser } from '../auth/auth.decorators';
+import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 
+@ApiTags('Notifications')
 @Controller('notifications')
 @UseGuards(AuthGuard)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Fetch live notifications for current user' })
   async listNotifications(@GetUser('id') userId: number) {
     return this.notificationsService.listNotifications(userId);
   }
 
   @Patch()
+  @ApiOperation({ summary: 'Mark notifications as read' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        markAllAsRead: { type: 'boolean', example: true },
+        notificationId: { type: 'number', example: 1 },
+      },
+    },
+  })
   async updateNotifications(
     @GetUser('id') userId: number,
     @Body() body: any,

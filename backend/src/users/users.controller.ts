@@ -94,6 +94,17 @@ export class UsersController {
   // 2. PROTECTED ROUTES (ANY AUTHENTICATED USER)
 
   @Post('profile/change-password')
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['currentPassword', 'newPassword'],
+      properties: {
+        currentPassword: { type: 'string', example: 'OldPassword123!' },
+        newPassword: { type: 'string', example: 'NewPassword123!' },
+      },
+    },
+  })
   async changePassword(
     @GetUser('id') userId: number,
     @Body() body: any,
@@ -102,16 +113,19 @@ export class UsersController {
   }
 
   @Get('users')
+  @ApiOperation({ summary: 'List users' })
   async listUsers() {
     return this.usersService.listUsers();
   }
 
   @Get('users/agents')
+  @ApiOperation({ summary: 'List available support agents' })
   async listAgents() {
     return this.usersService.listAgents();
   }
 
   @Get('users/warnings')
+  @ApiOperation({ summary: 'Fetch user warning logs' })
   async getUserWarnings(@GetUser('id') userId: number) {
     return this.usersService.getUserWarnings(userId);
   }
@@ -121,12 +135,26 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Get('admin/users')
+  @ApiOperation({ summary: 'List all staff accounts & registration approvals (Admin only)' })
   async listAdminUsers() {
     return this.usersService.listAdminUsers();
   }
 
   @Roles('ADMIN')
   @Patch('admin/users/:id')
+  @ApiOperation({ summary: 'Approve, warn, ban/unban, or update user role (Admin only)' })
+  @ApiParam({ name: 'id', example: 1 })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ACTIVE', enum: ['PENDING', 'ACTIVE', 'BANNED', 'REJECTED'] },
+        role: { type: 'string', example: 'AGENT', enum: ['USER', 'AGENT', 'ADMIN'] },
+        warnReason: { type: 'string', example: 'Inappropriate language in report' },
+        banReason: { type: 'string', example: 'Violation of IT policies' },
+      },
+    },
+  })
   async updateAdminUser(
     @GetUser('id') callingUserId: number,
     @Param('id', ParseIntPipe) targetUserId: number,
@@ -137,6 +165,8 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Delete('admin/users/:id')
+  @ApiOperation({ summary: 'Delete user account (Admin only)' })
+  @ApiParam({ name: 'id', example: 1 })
   async deleteAdminUser(
     @GetUser('id') callingUserId: number,
     @Param('id', ParseIntPipe) targetUserId: number,
