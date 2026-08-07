@@ -17,9 +17,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { IssuesService } from './issues.service';
 import { AuthGuard, AuthenticatedUser } from '../auth/auth.guard';
 import { GetUser, Roles } from '../auth/auth.decorators';
-import { ApiTags, ApiOperation, ApiBody, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiParam, ApiQuery, ApiConsumes, ApiSecurity } from '@nestjs/swagger';
 
 @ApiTags('Incidents / Issues')
+@ApiSecurity('x-user-id')
+@ApiSecurity('x-user-role')
 @Controller('issues')
 @UseGuards(AuthGuard)
 export class IssuesController {

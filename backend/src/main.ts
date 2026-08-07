@@ -17,7 +17,8 @@ async function bootstrap() {
     .setTitle('Ethio Telecom Issue Tracker API')
     .setDescription('REST API documentation for the Issue Tracker backend')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addApiKey({ type: 'apiKey', name: 'x-user-id', in: 'header' }, 'x-user-id')
+    .addApiKey({ type: 'apiKey', name: 'x-user-role', in: 'header' }, 'x-user-role')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);

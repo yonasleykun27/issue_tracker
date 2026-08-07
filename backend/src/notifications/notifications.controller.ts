@@ -8,9 +8,11 @@ import {
 import { NotificationsService } from './notifications.service';
 import { AuthGuard, AuthenticatedUser } from '../auth/auth.guard';
 import { GetUser } from '../auth/auth.decorators';
-import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiSecurity } from '@nestjs/swagger';
 
 @ApiTags('Notifications')
+@ApiSecurity('x-user-id')
+@ApiSecurity('x-user-role')
 @Controller('notifications')
 @UseGuards(AuthGuard)
 export class NotificationsController {

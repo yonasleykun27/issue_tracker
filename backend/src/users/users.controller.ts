@@ -12,9 +12,11 @@ import {
 import { UsersService } from './users.service';
 import { Public, Roles, GetUser } from '../auth/auth.decorators';
 import { AuthGuard, AuthenticatedUser } from '../auth/auth.guard';
-import { ApiTags, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiParam, ApiSecurity } from '@nestjs/swagger';
 
 @ApiTags('Users / Auth')
+@ApiSecurity('x-user-id')
+@ApiSecurity('x-user-role')
 @Controller()
 @UseGuards(AuthGuard)
 export class UsersController {
